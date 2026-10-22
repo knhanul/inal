@@ -59,6 +59,9 @@ export const ALLOWED_QUERY_KEYS = new Set([
   'year',
   'month',
   'set',
+  'cases',
+  'cal',
+  'part',
 ]);
 
 export function matchAllowedRoute(pathname) {

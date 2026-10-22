@@ -15,20 +15,27 @@ const KIND_BADGE_MAP: Record<DataProvenance['kind'], { label: string; badgeClass
 
 export const DataSourceLabel: React.FC<DataSourceLabelProps> = ({ provenance, compact = false }) => {
   const meta = KIND_BADGE_MAP[provenance.kind] || KIND_BADGE_MAP.obs;
+  const rawRef = provenance.referenceTime as unknown;
+  const safeRefTime =
+    typeof rawRef === 'string'
+      ? rawRef
+      : rawRef && typeof rawRef === 'object' && 'base' in rawRef && typeof (rawRef as { base?: unknown }).base === 'string'
+      ? (rawRef as { base: string }).base
+      : '';
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-inal-textMuted">
       <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${meta.badgeClass}`}>
         {meta.label}
       </span>
-      <span className="font-medium text-inal-textMuted">{provenance.sourceName}</span>
-      {provenance.referenceTime && (
+      <span className="font-medium text-inal-textMuted">{String(provenance.sourceName || '')}</span>
+      {safeRefTime && (
         <>
           <span aria-hidden="true" className="text-inal-textSoft">·</span>
-          <span className="tabular-nums text-inal-textSoft">{provenance.referenceTime}</span>
+          <span className="tabular-nums text-inal-textSoft">{safeRefTime}</span>
         </>
       )}
       {!compact && provenance.note && (
-        <p className="w-full text-[10px] leading-relaxed text-inal-textSoft">{provenance.note}</p>
+        <p className="w-full text-[10px] leading-relaxed text-inal-textSoft">{String(provenance.note)}</p>
       )}
     </div>
   );

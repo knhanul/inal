@@ -9,6 +9,8 @@ import {
 import {
   mapForecastHoursToTimeline,
   mapForecastDaysToViewModels,
+  extractReleaseTime,
+  findBasisStat,
   degreeToKoreanWindDir,
   formatTemp,
   formatWindSpeed,
@@ -52,13 +54,15 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
     const slots12h = mapForecastHoursToTimeline(fcstRaw, 12);
     const slots72h = mapForecastHoursToTimeline(fcstRaw, 24);
     const windHours = windQuery.data?.data.hours || [];
+    const ultraBase = extractReleaseTime(releases?.ultra);
+    const vilageBase = extractReleaseTime(releases?.vilage);
 
     const detail12h: BottomSheetDetailPayload = {
       id: `fcst-12h-${stationId}`,
       categoryBadge: '12시간 집중 예보',
       title: `${station.name} 앞으로 12시간 기온·강수·바람`,
       subtitle: '가까운 시간은 초단기예보, 이후 시간은 단기예보를 결합해 보여줍니다.',
-      provenance: { kind: 'fcst', sourceName: '기상청 초단기예보 · 단기예보', referenceTime: releases?.ultra || releases?.vilage || '최신 발표' },
+      provenance: { kind: 'fcst', sourceName: '기상청 초단기예보 · 단기예보', referenceTime: ultraBase || vilageBase || '최신 발표' },
       chartSeries: {
         type: 'hourly-obs-fcst',
         unit: '℃',
@@ -66,7 +70,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       },
       tableRows: slots12h.map((s) => ({ label: s.timeLabel, col1: s.tempText, col2: `강수 ${s.popText}`, col3: `바람 ${s.windText}` })),
       explanationBody: [
-        `초단기예보 발표: ${releases?.ultra || '확인 중'} / 단기예보 발표: ${releases?.vilage || '확인 중'}`,
+        `초단기예보 발표: ${ultraBase || '확인 중'} / 단기예보 발표: ${vilageBase || '확인 중'}`,
       ],
     };
 
@@ -75,7 +79,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="card-12h"
         title={`${station.name} 앞으로 12시간 예보`}
         subtitle="외출 전 꼭 확인해야 할 시간대별 기온·강수확률·풍속 흐름입니다."
-        provenance={{ kind: 'fcst', sourceName: '초단기·단기예보', referenceTime: releases?.ultra || releases?.vilage || '' }}
+        provenance={{ kind: 'fcst', sourceName: '초단기·단기예보', referenceTime: ultraBase || vilageBase || '' }}
         hourlySlots={slots12h}
         detail={detail12h}
         onOpenDetail={onOpenDetail}
@@ -84,7 +88,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="card-72h"
         title="72시간(3일) 단기예보 흐름"
         subtitle="모레까지의 시간별 기온 변화와 비·눈 예보 구간을 카드로 넘겨 확인하세요."
-        provenance={{ kind: 'fcst', sourceName: '기상청 단기예보', referenceTime: releases?.vilage || '하루 8회 발표' }}
+        provenance={{ kind: 'fcst', sourceName: '기상청 단기예보', referenceTime: vilageBase || '하루 8회 발표' }}
         hourlySlots={slots72h}
         detail={detail12h}
         onOpenDetail={onOpenDetail}
@@ -126,13 +130,17 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
     const secondHalf = dailyItems.slice(5, 10);
     const dayMax = nowQuery.data?.data.day?.max;
     const dayMin = nowQuery.data?.data.day?.min;
+    const dayMaxCmp = findBasisStat(dayMax?.compare, 'all');
+    const dayMinCmp = findBasisStat(dayMin?.compare, 'all');
+    const vilageBase = extractReleaseTime(releases?.vilage);
+    const midBase = extractReleaseTime(releases?.mid) || extractReleaseTime(releases?.midTa);
 
     const detail10d: BottomSheetDetailPayload = {
       id: `fcst-10d-${stationId}`,
       categoryBadge: '단기 + 중기 10일 예보',
       title: `${station.name} 일별 최고·최저기온 및 예년 비교`,
       subtitle: '기존 Weather API가 실제 제공하는 일별 예보 기간과 평년 비교값만 표시합니다.',
-      provenance: { kind: 'fcst', sourceName: '기상청 단기예보 + 중기예보', referenceTime: releases?.mid || '' },
+      provenance: { kind: 'fcst', sourceName: '기상청 단기예보 + 중기예보', referenceTime: midBase || '' },
       tableRows: dailyItems.map((d) => ({
         label: `${d.dateLabel} (${d.dayOfWeek})`,
         col1: `${d.minTempText} / ${d.maxTempText}`,
@@ -147,7 +155,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="daily-1-5"
         title={`${station.name} 이번 주 일별 예보 (1~${firstHalf.length}일)`}
         subtitle="날짜별 최저·최고기온, 강수확률 및 평년 기온과의 차이를 확인하세요."
-        provenance={{ kind: 'fcst', sourceName: '단기·중기예보 결합', referenceTime: releases?.vilage || '최신 발표' }}
+        provenance={{ kind: 'fcst', sourceName: '단기·중기예보 결합', referenceTime: vilageBase || '최신 발표' }}
         dailyItems={firstHalf}
         detail={detail10d}
         onOpenDetail={onOpenDetail}
@@ -156,7 +164,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="daily-6-10"
         title={`${station.name} 중기 일별 예보 (${firstHalf.length + 1}~${dailyItems.length}일)`}
         subtitle="기상청 중기예보가 제공하는 다음 주 기온 흐름과 강수 전망입니다."
-        provenance={{ kind: 'fcst', sourceName: '기상청 중기예보', referenceTime: releases?.mid || '하루 2회 발표' }}
+        provenance={{ kind: 'fcst', sourceName: '기상청 중기예보', referenceTime: midBase || '하루 2회 발표' }}
         dailyItems={secondHalf}
         detail={detail10d}
         onOpenDetail={onOpenDetail}
@@ -171,16 +179,16 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
           {
             id: 'cmp-max-all',
             title: '오늘 최고기온 예보 비교',
-            subtitle: `1990~2025 평균 ${formatTemp(dayMax?.compare?.mean)}`,
+            subtitle: `1990~2025 평균 ${formatTemp(dayMaxCmp?.mean)}`,
             primaryText: `예보 ${formatTemp(dayMax?.value)}`,
-            secondaryText: `평년 대비 ${formatTemp(dayMax?.compare?.diff, true)}`,
+            secondaryText: `평년 대비 ${formatTemp(dayMaxCmp?.diff, true)}`,
           },
           {
             id: 'cmp-min-all',
             title: '오늘 최저기온 예보 비교',
-            subtitle: `1990~2025 평균 ${formatTemp(dayMin?.compare?.mean)}`,
+            subtitle: `1990~2025 평균 ${formatTemp(dayMinCmp?.mean)}`,
             primaryText: `예보 ${formatTemp(dayMin?.value)}`,
-            secondaryText: `평년 대비 ${formatTemp(dayMin?.compare?.diff, true)}`,
+            secondaryText: `평년 대비 ${formatTemp(dayMinCmp?.diff, true)}`,
           },
         ]}
         detail={detail10d}

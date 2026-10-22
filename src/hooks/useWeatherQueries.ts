@@ -145,7 +145,7 @@ export function useRtLifeQuery(station: string, enabled = true) {
   });
 }
 
-export function useStatsYearlyQuery(station: string, metric = 'ta_avg', enabled = true) {
+export function useStatsYearlyQuery(station: string, metric = 'avg_temp', enabled = true) {
   return useQuery({
     queryKey: weatherQueryKeys.yearly(station, metric),
     queryFn: () => fetchWeatherApi<ApiStatsYearlyResponse>(WEATHER_ENDPOINTS.yearly(station, metric), () => getDevFallbackYearly(station)),

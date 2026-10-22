@@ -184,13 +184,17 @@ export const RegionSelector: React.FC<RegionSelectorProps> = ({
                       </span>
                     </div>
                     <div className="text-right">
-                      {live && live.ta !== null ? (
-                        <span className="block text-sm font-bold tabular-nums text-inal-text">
-                          {formatTemp(live.ta)}
-                        </span>
-                      ) : isSelected ? (
-                        <Check className="h-4 w-4 text-inal-accent" />
-                      ) : null}
+                      {(() => {
+                        const liveTemp = live ? (live.ta ?? (live as unknown as { temp?: number | null }).temp ?? null) : null;
+                        if (liveTemp !== null && liveTemp !== undefined) {
+                          return (
+                            <span className="block text-sm font-bold tabular-nums text-inal-text">
+                              {formatTemp(liveTemp)}
+                            </span>
+                          );
+                        }
+                        return isSelected ? <Check className="h-4 w-4 text-inal-accent" /> : null;
+                      })()}
                     </div>
                   </button>
                 );

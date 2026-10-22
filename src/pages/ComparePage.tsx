@@ -52,7 +52,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
 
   const regionsQuery = useRtRegionsQuery(true);
   const nowQuery = useRtNowQuery(stationId, true);
-  const yearlyQuery = useStatsYearlyQuery(stationId, 'ta_avg', true);
+  const yearlyQuery = useStatsYearlyQuery(stationId, 'avg_temp', true);
   const regionStatsQuery = useStatsRegionQuery('108,159,184', true);
   const lifeQuery = useRtLifeQuery(stationId, true);
   const recordsQuery = useRtRecordsQuery(stationId, true);
@@ -63,20 +63,52 @@ export const ComparePage: React.FC<ComparePageProps> = ({
     if (regionsQuery.isError || !regionsQuery.data) return <ErrorState title="전국 관측지점 비교를 불러오지 못했어요" onRetry={() => regionsQuery.refetch()} />;
 
     const raw = regionsQuery.data.data;
-    const rows = raw.rows || [];
-    const maxTa = raw.rankings?.maxTa;
-    const minTa = raw.rankings?.minTa;
+    const rows = (raw.rows || []).map((r) => {
+      const rAny = r as unknown as {
+        temp?: number | null;
+        diffs?: Partial<Record<BasisId, number | null>>;
+        means?: Partial<Record<BasisId, number | null>>;
+        pcts?: Partial<Record<BasisId, number | null>>;
+      };
+      const taVal = isValidNumber(r.ta) ? r.ta : isValidNumber(rAny.temp) ? rAny.temp : null;
+      const diffVal = isValidNumber(r.diff)
+        ? r.diff
+        : isValidNumber(rAny.diffs?.[basis])
+        ? rAny.diffs![basis]!
+        : isValidNumber(rAny.diffs?.all)
+        ? rAny.diffs!.all!
+        : null;
+      const meanVal = isValidNumber(rAny.means?.[basis]) ? rAny.means![basis]! : isValidNumber(rAny.means?.all) ? rAny.means!.all! : null;
+      const pctVal = isValidNumber(rAny.pcts?.[basis]) ? rAny.pcts![basis]! : isValidNumber(r.percentile) ? r.percentile : null;
+      return {
+        ...r,
+        ta: taVal,
+        diff: diffVal,
+        mean: meanVal,
+        pct: pctVal,
+      };
+    });
+    const validTempRows = rows.filter((r) => isValidNumber(r.ta));
+    const computedMax = validTempRows.length > 0 ? [...validTempRows].sort((a, b) => (b.ta ?? 0) - (a.ta ?? 0))[0] : undefined;
+    const computedMin = validTempRows.length > 0 ? [...validTempRows].sort((a, b) => (a.ta ?? 0) - (b.ta ?? 0))[0] : undefined;
+    const maxTaName = raw.rankings?.maxTa?.name || computedMax?.name || '제주';
+    const minTaName = raw.rankings?.minTa?.name || computedMin?.name || '인천';
+    const refTime = raw.asOf || raw.time || '최신 정시';
 
     return (
       <ComparisonCard
         badgeText="한눈에 보기"
-        title={`지금 전국은 · ${maxTa?.name || '제주'} 가장 따뜻 · ${minTa?.name || '인천'} 가장 선선`}
+        title={`지금 전국은 · ${maxTaName} 가장 따뜻 · ${minTaName} 가장 선선`}
         summary="전국 8개 공식 관측지점의 현재 기온과 평소 대비 기온 편차입니다. 지점을 누르면 해당 지역으로 전환됩니다."
-        provenance={{ kind: 'obs', sourceName: '기상청 초단기실황 · ASOS 8대 지점 비교', referenceTime: raw.asOf || '최신 정시' }}
+        provenance={{ kind: 'obs', sourceName: '기상청 초단기실황 · ASOS 8대 지점 비교', referenceTime: refTime }}
         rows={rows.slice(0, 5).map((r) => ({
           id: String(r.id),
           title: `${r.name} (${r.id})`,
-          subtitle: r.summary || `습도 ${r.hm ?? '-'}% · 풍속 ${formatWindSpeed(r.ws)}`,
+          subtitle:
+            r.summary ||
+            (isValidNumber(r.mean)
+              ? `이맘때 평균 ${formatTemp(r.mean)}${isValidNumber(r.pct) ? ` · 백분위 ${Math.round(r.pct!)}%` : ''}`
+              : `습도 ${r.hm ?? '-'}% · 풍속 ${formatWindSpeed(r.ws)}`),
           primaryText: formatTemp(r.ta),
           secondaryText: isValidNumber(r.diff) ? `평소 ${formatTemp(r.diff, true)}` : undefined,
           badgeText: String(r.id) === stationId ? '현재 선택' : undefined,
@@ -87,7 +119,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
           categoryBadge: '전국 8대 관측지점',
           title: '전국 관측지점 실시간 기온 및 과거 평균 대비 편차',
           subtitle: raw.note || '같은 실황 시각 기준 8개 지점 비교',
-          provenance: { kind: 'obs', sourceName: '기상청 초단기실황 vs ASOS 정시 관측', referenceTime: raw.asOf || '' },
+          provenance: { kind: 'obs', sourceName: '기상청 초단기실황 vs ASOS 정시 관측', referenceTime: refTime },
           tableRows: rows.map((r) => ({
             label: `${r.name}(${r.id})`,
             col1: formatTemp(r.ta),
@@ -177,7 +209,50 @@ export const ComparePage: React.FC<ComparePageProps> = ({
     if (regionStatsQuery.isError || !regionStatsQuery.data) return <ErrorState title="지역별 비교 데이터를 불러오지 못했어요" onRetry={() => regionStatsQuery.refetch()} />;
 
     const raw = regionStatsQuery.data.data;
+    const rawAny = raw as unknown as {
+      metrics?: Array<{
+        metric?: { id?: string; label?: string; unit?: string };
+        stations?: Array<{
+          station_id: string;
+          mean?: number | null;
+          delta?: { delta?: number | null; recent?: { mean?: number | null } };
+        }>;
+      }>;
+    };
     const tableRows = raw.table?.rows || [];
+    const mappedRows =
+      tableRows.length > 0
+        ? tableRows.map((r, idx) => ({
+            id: `reg-row-${idx}`,
+            title: String(r.metric || `항목 ${idx + 1}`),
+            subtitle: `부산 ${r.m159 ?? '-'}${r.unit ?? ''} (${r.d159 ?? '-'}) · 제주 ${r.m184 ?? '-'}${r.unit ?? ''} (${r.d184 ?? '-'})`,
+            primaryText: `서울 ${r.m108 ?? '-'}${r.unit ?? ''}`,
+            secondaryText: `90년대 대비 ${r.d108 ?? '-'}${r.unit ?? ''}`,
+          }))
+        : (rawAny.metrics || []).slice(0, 5).map((m, idx) => {
+            const unit = m.metric?.unit || '';
+            const findStn = (sid: string) => m.stations?.find((s) => s.station_id === sid);
+            const s108 = findStn('108');
+            const s159 = findStn('159');
+            const s184 = findStn('184');
+            const fmtVal = (s: typeof s108) => {
+              const v = s?.delta?.recent?.mean ?? s?.mean;
+              return isValidNumber(v) ? `${Math.round(v * 10) / 10}${unit}` : '-';
+            };
+            const fmtDelta = (s: typeof s108) => {
+              const d = s?.delta?.delta;
+              if (!isValidNumber(d)) return '-';
+              const r = Math.round(d * 10) / 10;
+              return `${r > 0 ? '+' : ''}${r}${unit}`;
+            };
+            return {
+              id: m.metric?.id || `reg-m-${idx}`,
+              title: m.metric?.label || `항목 ${idx + 1}`,
+              subtitle: `부산 ${fmtVal(s159)} (${fmtDelta(s159)}) · 제주 ${fmtVal(s184)} (${fmtDelta(s184)})`,
+              primaryText: `서울 ${fmtVal(s108)}`,
+              secondaryText: `90년대 대비 ${fmtDelta(s108)}`,
+            };
+          });
 
     return (
       <ComparisonCard
@@ -185,13 +260,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
         title="서울 · 부산 · 제주 — 1990년대 대비 최근 10년 기후 비교"
         summary="주요 권역 관측지점별로 1990~1999년 평균과 최근 완료된 10년(2016~2025) 평균을 비교합니다."
         provenance={{ kind: 'stats', sourceName: raw.source || 'ASOS 공식 일자료', referenceTime: '1990~2025' }}
-        rows={tableRows.map((r, idx) => ({
-          id: `reg-row-${idx}`,
-          title: String(r.metric || `항목 ${idx + 1}`),
-          subtitle: `부산 ${r.m159 ?? '-'}${r.unit ?? ''} (${r.d159 ?? '-'}) · 제주 ${r.m184 ?? '-'}${r.unit ?? ''} (${r.d184 ?? '-'})`,
-          primaryText: `서울 ${r.m108 ?? '-'}${r.unit ?? ''}`,
-          secondaryText: `90년대 대비 ${r.d108 ?? '-'}${r.unit ?? ''}`,
-        }))}
+        rows={mappedRows}
         onOpenDetail={onOpenDetail}
       />
     );
@@ -208,15 +277,28 @@ export const ComparePage: React.FC<ComparePageProps> = ({
       <ComparisonCard
         badgeText="생활 속 날씨"
         title={`${station.name} 오늘·내일 생활 속 날씨와 활동 지수`}
-        summary="실황과 단기예보를 결합해 산책·빨래·세차·수면 쾌적도와 출퇴근 시나리오를 안내합니다."
+        summary="실황과 단기예보를 결합해 출퇴근·산책·외출 시간대별 체감과 과거 평균 차이를 안내합니다."
         provenance={{ kind: 'mix', sourceName: '초단기실황 + 단기예보 생활 규칙', referenceTime: raw.now || '최신 발표' }}
-        rows={items.map((item) => ({
-          id: item.id,
-          title: item.name,
-          subtitle: item.comment,
-          primaryText: item.level,
-          secondaryText: item.valueText,
-        }))}
+        rows={items.map((item) => {
+          const itemAny = item as unknown as {
+            q?: string;
+            answer?: string;
+            value?: number | string | null;
+            unit?: string;
+            kind?: string;
+            basis?: string;
+            diffLevel?: { phrase?: string };
+          };
+          return {
+            id: item.id,
+            title: item.name || itemAny.q || '생활 날씨',
+            subtitle: item.comment || itemAny.answer || itemAny.basis || '',
+            primaryText: item.level || itemAny.diffLevel?.phrase || itemAny.kind || '-',
+            secondaryText:
+              item.valueText ||
+              (itemAny.value !== undefined && itemAny.value !== null ? `${itemAny.value}${itemAny.unit || ''}` : undefined),
+          };
+        })}
         onOpenDetail={onOpenDetail}
       />
     );
@@ -230,22 +312,79 @@ export const ComparePage: React.FC<ComparePageProps> = ({
     const events = seasonsQuery.data?.data.events || [];
     const cal = recRaw.rainCalendar30d;
 
-    const recordItems = [
-      ...(recRaw.days || []).map((d) => ({
-        id: d.id,
-        title: d.title,
-        valueText: `${d.value ?? '-'}${d.unit}`,
-        dateText: d.date,
-        subNote: d.note,
-      })),
-      ...events.slice(0, 2).map((ev) => ({
+    const mappedRecDays = (recRaw.days || []).flatMap((d, idx) => {
+      const dAny = d as unknown as {
+        kind?: string;
+        max?: number | null;
+        min?: number | null;
+        periods?: Array<{
+          id: string;
+          recMax?: { value?: number | null; date?: string };
+          recMin?: { value?: number | null; date?: string };
+        }>;
+      };
+      if (d.title && d.unit !== undefined) {
+        return [
+          {
+            id: d.id || `rec-${idx}`,
+            title: d.title,
+            valueText: `${d.value ?? '-'}${d.unit}`,
+            dateText: d.date,
+            subNote: d.note,
+          },
+        ];
+      }
+      const p = dAny.periods?.find((x) => x.id === basis) || dAny.periods?.[0];
+      if (!p) return [];
+      const out = [];
+      if (idx === 0 && p.recMax?.value !== undefined) {
+        out.push({
+          id: `rec-max-${d.date}`,
+          title: `이맘때 역대 최고기온 (${dAny.kind || d.date})`,
+          valueText: formatTemp(p.recMax.value),
+          dateText: p.recMax.date || d.date,
+          subNote: isValidNumber(dAny.max) ? `오늘 예보 최고 ${formatTemp(dAny.max)}` : undefined,
+        });
+      }
+      if (idx === 0 && p.recMin?.value !== undefined) {
+        out.push({
+          id: `rec-min-${d.date}`,
+          title: `이맘때 역대 최저기온 (${dAny.kind || d.date})`,
+          valueText: formatTemp(p.recMin.value),
+          dateText: p.recMin.date || d.date,
+          subNote: isValidNumber(dAny.min) ? `오늘 예보 최저 ${formatTemp(dAny.min)}` : undefined,
+        });
+      }
+      return out;
+    });
+
+    const mappedEvents = events.slice(0, 3).map((ev) => {
+      const evAny = ev as unknown as {
+        label?: string;
+        current?: { date?: string | null; value?: number | null };
+        periods?: Array<{ id: string; range?: string; hitSeasons?: number; completeSeasons?: number }>;
+      };
+      const p = evAny.periods?.find((x) => x.id === basis) || evAny.periods?.[0];
+      const titleText = ev.name || evAny.label || ev.id;
+      const actualText = ev.actualDate || evAny.current?.date || '아직 미발생';
+      const dateText = ev.historicalAvgDate
+        ? `평균 ${ev.historicalAvgDate}`
+        : p?.hitSeasons !== undefined && p?.completeSeasons !== undefined
+        ? `${p.range || '기준'} 중 ${p.hitSeasons}/${p.completeSeasons}해 발생`
+        : '';
+      const subText =
+        ev.status ||
+        (isValidNumber(evAny.current?.value) ? `관측값 ${evAny.current!.value}℃` : undefined);
+      return {
         id: ev.id,
-        title: `계절 신호 · ${ev.name}`,
-        valueText: ev.actualDate || '미발생',
-        dateText: `평균 ${ev.historicalAvgDate || '-'}`,
-        subNote: ev.status,
-      })),
-    ];
+        title: `계절 신호 · ${titleText}`,
+        valueText: actualText,
+        dateText,
+        subNote: subText,
+      };
+    });
+
+    const recordItems = [...mappedRecDays, ...mappedEvents];
 
     return (
       <RecordCard

@@ -15,6 +15,8 @@ export interface ApiPeriodMeta {
 }
 
 export interface ApiBasisStat {
+  id?: BasisId | string;
+  range?: string;
   period?: string;
   mean: number | null;
   diff: number | null;
@@ -26,7 +28,10 @@ export interface ApiBasisStat {
   percentile?: number | null;
   zscore?: number | null;
   rank?: number | null;
+  rankHigh?: number | null;
+  rankLow?: number | null;
   total?: number | null;
+  samples?: number | null;
   sampleCount?: number | null;
   min?: { value: number | null; year?: number; date?: string } | number | null;
   max?: { value: number | null; year?: number; date?: string } | number | null;
@@ -38,6 +43,8 @@ export interface ApiBasisStat {
   r5Mean?: number | null;
   r5Diff?: number | null;
 }
+
+export type ApiCompareField = ApiBasisStat | ApiBasisStat[] | null | undefined;
 
 export interface ApiRtNowResponse {
   ok: boolean;
@@ -56,10 +63,13 @@ export interface ApiRtNowResponse {
     kind: 'obs' | 'fcst' | string;
     source: string;
     freshness?: {
-      base: string;
+      base?: string;
       ageMinutes?: number | null;
+      ageMin?: number | null;
       status?: string;
-      label: string;
+      state?: string;
+      label?: string;
+      text?: string;
     };
     values: {
       ta: number | null;
@@ -69,13 +79,13 @@ export interface ApiRtNowResponse {
       vec: number | null;
       windDir: string | null;
       pty: string | null;
-      sky: string | null;
+      sky?: string | null;
     };
     compare?: {
-      ta?: ApiBasisStat | null;
-      hm?: ApiBasisStat | null;
-      rn?: ApiBasisStat | null;
-      ws?: ApiBasisStat | null;
+      ta?: ApiCompareField;
+      hm?: ApiCompareField;
+      rn?: ApiCompareField;
+      ws?: ApiCompareField;
     };
   };
   day?: {
@@ -84,14 +94,14 @@ export interface ApiRtNowResponse {
       source: string;
       base: string;
       value: number | null;
-      compare?: ApiBasisStat | null;
+      compare?: ApiCompareField;
     };
     min?: {
       kind: string;
       source: string;
       base: string;
       value: number | null;
-      compare?: ApiBasisStat | null;
+      compare?: ApiCompareField;
     };
   };
 }
@@ -103,6 +113,7 @@ export interface ApiRtTodayHourlyItem {
   fcst: number | null;
   fcstSource?: string | null;
   fcstBase?: string | null;
+  base?: Partial<Record<BasisId, number | null>>;
   compare?: {
     mean: number | null;
     r10Mean?: number | null;
@@ -134,7 +145,8 @@ export interface ApiRtTodayResponse {
     ny: number;
     note?: string;
   };
-  hourly: ApiRtTodayHourlyItem[];
+  hourly?: ApiRtTodayHourlyItem[];
+  hours?: ApiRtTodayHourlyItem[];
   summary?: {
     headline?: string;
     outfit?: string;
@@ -146,37 +158,48 @@ export interface ApiRtTodayResponse {
 
 export interface ApiRtForecastHourItem {
   time: string;
-  hour: number;
+  hour?: number;
   ta: number | null;
   hm: number | null;
   ws: number | null;
-  pcp: number | null;
-  pty: number | null;
+  pcp: number | string | null;
+  pty: number | string | null;
   pop: number | null;
-  sky: number | null;
+  sky: number | string | null;
   source: string;
   base: string;
-  pcpText: string | null;
-  ptyName: string | null;
-  skyName: string | null;
+  pcpText?: string | null;
+  ptyName?: string | null;
+  skyName?: string | null;
 }
 
 export interface ApiRtForecastDayItem {
   date: string;
-  dayOfWeek: string;
-  tmX: number | null;
-  tmN: number | null;
-  popMax: number | null;
-  pcpSum: number | null;
-  skyCode: number | null;
-  skyName: string | null;
-  ptyCode: number | null;
-  ptyName: string | null;
-  isObserved: boolean;
+  dayOfWeek?: string;
+  tmX?: number | null;
+  tmN?: number | null;
+  max?: number | null;
+  min?: number | null;
+  popMax?: number | null;
+  pop?: number | null;
+  pcpSum?: number | null;
+  skyCode?: number | null;
+  skyName?: string | null;
+  sky?: string | null;
+  wf?: string | null;
+  ptyCode?: number | null;
+  ptyName?: string | null;
+  isObserved?: boolean;
   normalMax?: number | null;
   normalMin?: number | null;
+  maxCmp?: ApiBasisStat[];
+  minCmp?: ApiBasisStat[];
   source?: string;
+  maxSource?: string | null;
+  wxSource?: string | null;
 }
+
+export type ApiReleaseInfo = string | { base?: string; freshness?: { state?: string; ageMin?: number; text?: string } } | null;
 
 export interface ApiRtForecastResponse {
   ok: boolean;
@@ -184,13 +207,15 @@ export interface ApiRtForecastResponse {
   date?: string;
   station: ApiStationRef;
   releases?: {
-    ultra?: string | null;
-    vilage?: string | null;
-    mid?: string | null;
+    ultra?: ApiReleaseInfo;
+    vilage?: ApiReleaseInfo;
+    mid?: ApiReleaseInfo;
+    midTa?: ApiReleaseInfo;
+    midLand?: ApiReleaseInfo;
   };
   hours: ApiRtForecastHourItem[];
   days: ApiRtForecastDayItem[];
-  week?: ApiRtForecastDayItem[];
+  week?: ApiRtForecastDayItem[] | { from?: string; to?: string; days?: ApiRtForecastDayItem[] };
 }
 
 export interface ApiRtForecastWindItem {

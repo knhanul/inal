@@ -15,6 +15,7 @@ import {
   mapApiStoriesToViewModels,
   mapForecastHoursToTimeline,
   mapTodayHourlySeries,
+  extractReleaseTime,
   formatTemp,
   formatPercent,
   formatRainfall,
@@ -114,7 +115,10 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
     const slots12h = mapForecastHoursToTimeline(forecastQuery.data?.data, 12);
     const todayRaw = todayQuery.data?.data;
     const hourlySeries = mapTodayHourlySeries(todayRaw);
-    const releaseBase = forecastQuery.data?.data.releases?.ultra || forecastQuery.data?.data.releases?.vilage || '최신 예보 발표';
+    const releaseBase =
+      extractReleaseTime(forecastQuery.data?.data.releases?.ultra) ||
+      extractReleaseTime(forecastQuery.data?.data.releases?.vilage) ||
+      '최신 예보 발표';
 
     const detailPayload: BottomSheetDetailPayload = {
       id: `today-12h-${stationId}`,
@@ -190,7 +194,36 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
     if (similarQuery.isLoading) return <LoadingSkeleton label="기온 흐름이 닮은 과거 날짜를 찾는 중입니다…" />;
     if (similarQuery.isError) return <ErrorState title="비슷했던 과거 날씨를 불러오지 못했어요" onRetry={() => similarQuery.refetch()} />;
 
-    const matches = similarQuery.data?.data.matches || [];
+    const simRaw = similarQuery.data?.data as unknown as {
+      matches?: Array<{ date: string; similarityPercent?: number; weatherSummary?: string; taMin?: number | null; taMax?: number | null; taDiff?: number | null }>;
+      top?: Array<{ date: string; score?: number; rmse?: number; ta?: Array<number | null> }>;
+    };
+    const rawMatches = simRaw?.matches || [];
+    const rawTop = simRaw?.top || [];
+    const matches =
+      rawMatches.length > 0
+        ? rawMatches.map((m) => ({
+            date: m.date,
+            similarityPercent: m.similarityPercent ?? 90,
+            weatherSummary: m.weatherSummary || '시간별 기온 패턴 유사',
+            taMin: m.taMin ?? null,
+            taMax: m.taMax ?? null,
+            taDiff: m.taDiff ?? null,
+          }))
+        : rawTop.map((t) => {
+            const validTa = Array.isArray(t.ta) ? t.ta.filter(isValidNumber) : [];
+            const rmse = isValidNumber(t.rmse) ? t.rmse : isValidNumber(t.score) ? t.score : 1;
+            const simPct = Math.max(50, Math.min(99, Math.round(100 - rmse * 8)));
+            return {
+              date: t.date,
+              similarityPercent: simPct,
+              weatherSummary: `시간별 기온차 평균(RMSE) ${Math.round(rmse * 10) / 10}℃`,
+              taMin: validTa.length > 0 ? Math.min(...validTa) : null,
+              taMax: validTa.length > 0 ? Math.max(...validTa) : null,
+              taDiff: rmse,
+            };
+          });
+
     if (matches.length === 0) {
       return <EmptyState title="닮은 과거 날씨를 아직 찾지 못했어요" description="충분한 시간별 관측 표본이 모이면 유사한 기온 흐름을 보인 과거 날짜를 안내합니다." />;
     }

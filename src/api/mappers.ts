@@ -5,6 +5,8 @@ import type {
   ApiRtStoriesResponse,
   BasisId,
   ApiBasisStat,
+  ApiCompareField,
+  ApiReleaseInfo,
 } from '../types/api';
 import type {
   CurrentWeatherDomain,
@@ -79,40 +81,101 @@ export function resolveConditionLabel(
   return '하늘 상태 미수집';
 }
 
+export function extractReleaseTime(rel: ApiReleaseInfo | undefined, fallback = ''): string {
+  if (!rel) return fallback;
+  if (typeof rel === 'string') return rel;
+  if (typeof rel === 'object' && typeof rel.base === 'string') return rel.base;
+  return fallback;
+}
+
+export function findBasisStat(stat: ApiCompareField, basisId: BasisId = 'all'): ApiBasisStat | null {
+  if (!stat) return null;
+  if (Array.isArray(stat)) {
+    return stat.find((item) => item.id === basisId) || stat[0] || null;
+  }
+  return stat.byBasis?.[basisId] || stat;
+}
+
 function mapSingleDistribution(
   basisId: BasisId,
   defaultPeriod: string,
-  stat: ApiBasisStat | null | undefined
+  stat: ApiCompareField
 ): DistributionBand {
-  const sub = stat?.byBasis?.[basisId] || stat;
+  const sub = findBasisStat(stat, basisId);
+  const singleStat = !Array.isArray(stat) ? stat : null;
   const minObj = typeof sub?.min === 'object' && sub?.min !== null ? sub.min : null;
   const maxObj = typeof sub?.max === 'object' && sub?.max !== null ? sub.max : null;
 
   let meanVal = sub?.mean ?? null;
   let diffVal = sub?.diff ?? null;
-  if (basisId === 'r10' && !sub?.byBasis) {
-    if (isValidNumber(stat?.r10Mean)) meanVal = stat.r10Mean;
-    if (isValidNumber(stat?.r10Diff)) diffVal = stat.r10Diff;
-  } else if (basisId === 'r5' && !sub?.byBasis) {
-    if (isValidNumber(stat?.r5Mean)) meanVal = stat.r5Mean;
-    if (isValidNumber(stat?.r5Diff)) diffVal = stat.r5Diff;
+  if (singleStat && basisId === 'r10' && !singleStat.byBasis) {
+    if (isValidNumber(singleStat.r10Mean)) meanVal = singleStat.r10Mean;
+    if (isValidNumber(singleStat.r10Diff)) diffVal = singleStat.r10Diff;
+  } else if (singleStat && basisId === 'r5' && !singleStat.byBasis) {
+    if (isValidNumber(singleStat.r5Mean)) meanVal = singleStat.r5Mean;
+    if (isValidNumber(singleStat.r5Diff)) diffVal = singleStat.r5Diff;
   }
+
+  const rankVal = isValidNumber(sub?.rank)
+    ? sub!.rank
+    : isValidNumber(sub?.rankHigh)
+    ? sub!.rankHigh
+    : null;
+  const sampleVal = isValidNumber(sub?.total)
+    ? sub!.total
+    : isValidNumber(sub?.samples)
+    ? sub!.samples
+    : isValidNumber(sub?.sampleCount)
+    ? sub!.sampleCount
+    : null;
+
+  const parseYear = (obj: { year?: number; date?: string } | null) => {
+    if (!obj) return undefined;
+    if (typeof obj.year === 'number') return obj.year;
+    if (typeof obj.date === 'string' && obj.date.length >= 4) {
+      const y = Number(obj.date.slice(0, 4));
+      return Number.isNaN(y) ? undefined : y;
+    }
+    return undefined;
+  };
 
   return {
     basisId,
-    periodLabel: sub?.period || defaultPeriod,
+    periodLabel: sub?.period || (sub?.range ? `${sub.range} (${sub.label || basisId})` : defaultPeriod),
     mean: isValidNumber(meanVal) ? meanVal : null,
     diff: isValidNumber(diffVal) ? diffVal : null,
-    p10: isValidNumber(sub?.p10) ? sub.p10 : null,
-    p90: isValidNumber(sub?.p90) ? sub.p90 : null,
-    min: isValidNumber(minObj?.value) ? minObj.value : typeof sub?.min === 'number' ? sub.min : null,
-    minYear: minObj?.year,
-    max: isValidNumber(maxObj?.value) ? maxObj.value : typeof sub?.max === 'number' ? sub.max : null,
-    maxYear: maxObj?.year,
-    percentile: isValidNumber(sub?.percentile) ? sub.percentile : null,
-    rank: isValidNumber(sub?.rank) ? sub.rank : null,
-    sampleCount: isValidNumber(sub?.total) ? sub.total : isValidNumber(sub?.sampleCount) ? sub.sampleCount : null,
-    summary: sub?.summary || stat?.summary || null,
+    p10: isValidNumber(sub?.p10) ? sub!.p10! : null,
+    p90: isValidNumber(sub?.p90) ? sub!.p90! : null,
+    min: isValidNumber(minObj?.value) ? minObj!.value : typeof sub?.min === 'number' ? sub.min : null,
+    minYear: parseYear(minObj),
+    max: isValidNumber(maxObj?.value) ? maxObj!.value : typeof sub?.max === 'number' ? sub.max : null,
+    maxYear: parseYear(maxObj),
+    percentile: isValidNumber(sub?.percentile) ? sub!.percentile! : null,
+    rank: rankVal,
+    sampleCount: sampleVal,
+    summary: sub?.summary || singleStat?.summary || null,
+  };
+}
+
+function extractMetricMeansByBasis(stat: ApiCompareField): Record<BasisId, number | null> {
+  if (!stat) return { all: null, r10: null, r5: null };
+  if (Array.isArray(stat)) {
+    const getMean = (id: BasisId) => {
+      const found = stat.find((s) => s.id === id);
+      return isValidNumber(found?.mean) ? found!.mean : null;
+    };
+    const allM = getMean('all');
+    return {
+      all: allM,
+      r10: getMean('r10') ?? allM,
+      r5: getMean('r5') ?? allM,
+    };
+  }
+  const allM = isValidNumber(stat.mean) ? stat.mean : null;
+  return {
+    all: allM,
+    r10: isValidNumber(stat.r10Mean) ? stat.r10Mean! : allM,
+    r5: isValidNumber(stat.r5Mean) ? stat.r5Mean! : allM,
   };
 }
 
@@ -129,10 +192,17 @@ export function mapApiNowToDomain(raw: ApiRtNowResponse, isDevFallback = false):
       : `${vals.windDir}풍`
     : degreeToKoreanWindDir(vals.vec);
 
+  const freshnessLabel =
+    raw.current?.freshness?.label ||
+    raw.current?.freshness?.text ||
+    raw.current?.time ||
+    raw.now ||
+    '시각 확인 중';
+
   return {
     stationId: raw.station?.id || '108',
     stationName: raw.station?.name || '서울',
-    observedAt: raw.current?.freshness?.label || raw.current?.time || raw.now || '시각 확인 중',
+    observedAt: freshnessLabel,
     temperature: isValidNumber(vals.ta) ? vals.ta : null,
     humidity: isValidNumber(vals.hm) ? vals.hm : null,
     rainfall1h: isValidNumber(vals.rn1) ? vals.rn1 : null,
@@ -168,21 +238,9 @@ export function mapApiNowToDomain(raw: ApiRtNowResponse, isDevFallback = false):
       r5: mapSingleDistribution('r5', '2021~2025 (최근 5년)', taStat),
     },
     secondaryComparison: {
-      humidityMean: {
-        all: isValidNumber(hmStat?.mean) ? hmStat!.mean : null,
-        r10: isValidNumber(hmStat?.r10Mean) ? hmStat!.r10Mean! : isValidNumber(hmStat?.mean) ? hmStat!.mean : null,
-        r5: isValidNumber(hmStat?.r5Mean) ? hmStat!.r5Mean! : isValidNumber(hmStat?.mean) ? hmStat!.mean : null,
-      },
-      rainfallMean: {
-        all: isValidNumber(rnStat?.mean) ? rnStat!.mean : null,
-        r10: isValidNumber(rnStat?.r10Mean) ? rnStat!.r10Mean! : isValidNumber(rnStat?.mean) ? rnStat!.mean : null,
-        r5: isValidNumber(rnStat?.r5Mean) ? rnStat!.r5Mean! : isValidNumber(rnStat?.mean) ? rnStat!.mean : null,
-      },
-      windSpeedMean: {
-        all: isValidNumber(wsStat?.mean) ? wsStat!.mean : null,
-        r10: isValidNumber(wsStat?.r10Mean) ? wsStat!.r10Mean! : isValidNumber(wsStat?.mean) ? wsStat!.mean : null,
-        r5: isValidNumber(wsStat?.r5Mean) ? wsStat!.r5Mean! : isValidNumber(wsStat?.mean) ? wsStat!.mean : null,
-      },
+      humidityMean: extractMetricMeansByBasis(hmStat),
+      rainfallMean: extractMetricMeansByBasis(rnStat),
+      windSpeedMean: extractMetricMeansByBasis(wsStat),
     },
   };
 }
@@ -300,31 +358,51 @@ export function mapApiStoriesToViewModels(
   isDevFallback = false
 ): StoryCardViewModel[] {
   if (!raw?.stories || !Array.isArray(raw.stories)) return [];
-  return raw.stories.map((st) => {
-    const kind: 'obs' | 'fcst' | 'mix' = st.kind === 'fcst' ? 'fcst' : st.kind === 'mix' ? 'mix' : 'obs';
+  const rawAny = raw as unknown as Record<string, unknown>;
+  const refBasis = (typeof raw.basis === 'string' && raw.basis) || (typeof rawAny.basisName === 'string' && rawAny.basisName) || '1990년 이후 기준';
+
+  return raw.stories.map((st, idx) => {
+    const stAny = st as unknown as Record<string, unknown>;
+    const rawKind = String(st.kind || '');
+    const kind: 'obs' | 'fcst' | 'mix' =
+      rawKind === 'fcst' || rawKind.includes('예보')
+        ? rawKind.includes('실황') || rawKind.includes('관측')
+          ? 'mix'
+          : 'fcst'
+        : rawKind === 'mix'
+        ? 'mix'
+        : 'obs';
     const badgeMap = { obs: '관측 이야기', fcst: '예보 이야기', mix: '관측+예보 혼합' };
+    const id = st.id || (typeof stAny.ruleId === 'string' ? stAny.ruleId : `story-${idx}`);
+    const title = st.title || '오늘의 날씨 이야기';
+    const summary = st.content || (typeof stAny.text === 'string' ? stAny.text : '');
+    const badgeText = st.category || (typeof stAny.phenomenon === 'string' ? stAny.phenomenon : badgeMap[kind]);
+    const evidence = st.evidence || (typeof stAny.basis === 'string' ? stAny.basis : '기상청 관측·예보 및 ASOS 통계');
+    const highlightValue = typeof stAny.value === 'string' ? stAny.value : undefined;
+
     return {
-      id: st.id,
-      badgeText: st.category || badgeMap[kind],
+      id,
+      badgeText,
       kind,
-      title: st.title,
-      summary: st.content,
+      title,
+      highlightValue,
+      summary,
       tags: Array.isArray(st.tags) ? st.tags : [],
       provenance: {
         kind,
-        sourceName: st.evidence || '기상청 관측·예보 및 ASOS 통계',
-        referenceTime: raw.basis || '1990년 이후 기준',
+        sourceName: evidence,
+        referenceTime: (typeof stAny.asOf === 'string' && stAny.asOf) || refBasis,
         isDevFallback,
       },
       detail: {
-        id: `story-detail-${st.id}`,
+        id: `story-detail-${id}`,
         categoryBadge: badgeMap[kind],
-        title: st.title,
-        subtitle: st.content,
+        title,
+        subtitle: summary,
         provenance: {
           kind,
-          sourceName: st.evidence || '기상청 관측·예보 및 ASOS 통계',
-          referenceTime: raw.basis || '1990~2025',
+          sourceName: evidence,
+          referenceTime: refBasis,
           isDevFallback,
         },
         explanationTitle: '어떻게 계산하고 선별했나요?',
@@ -332,7 +410,7 @@ export function mapApiStoriesToViewModels(
           st.howCalculated || '실제 관측·예보 값에 정해 둔 통계 규칙을 적용해 계산했으며, 임의로 생성된 문장이 아닙니다.',
           '후보 이야기 중 이례성(35%) + 생활 관련성(35%) + 시점(15%) + 새 정보(15%) 점수로 상위 4개를 자동 선별합니다.',
         ],
-        cautionNote: st.evidence ? `근거 자료: ${st.evidence}` : undefined,
+        cautionNote: evidence ? `근거 자료: ${evidence}` : undefined,
       },
     };
   });
@@ -345,8 +423,10 @@ export function mapForecastHoursToTimeline(
   if (!raw?.hours || !Array.isArray(raw.hours)) return [];
   return raw.hours.slice(0, limit).map((item) => {
     const hourNum = typeof item.hour === 'number' ? item.hour : Number(item.time?.slice(11, 13) || 0);
-    const condTheme = resolveConditionTheme(item.ptyName || item.pty, item.skyName || item.sky, hourNum);
-    const hasPty = item.ptyName && item.ptyName !== '없음';
+    const ptyLabel = item.ptyName || (typeof item.pty === 'string' ? item.pty : null);
+    const skyLabel = item.skyName || (typeof item.sky === 'string' ? item.sky : null);
+    const condTheme = resolveConditionTheme(ptyLabel ?? item.pty, skyLabel ?? item.sky, hourNum);
+    const hasPty = ptyLabel && ptyLabel !== '없음' && ptyLabel !== '0';
     return {
       timeLabel: `${hourNum}시`,
       hour: hourNum,
@@ -356,47 +436,73 @@ export function mapForecastHoursToTimeline(
       popValue: isValidNumber(item.pop) ? item.pop : null,
       windText: formatWindSpeed(item.ws),
       conditionIcon: condTheme,
-      conditionText: hasPty ? item.ptyName! : item.skyName || '예보',
+      conditionText: hasPty ? ptyLabel! : skyLabel || '예보',
       kind: 'fcst',
     };
   });
 }
 
+const KOR_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
 export function mapForecastDaysToViewModels(
   raw: ApiRtForecastResponse | undefined
 ): DailyForecastItemViewModel[] {
-  const list = raw?.week && raw.week.length > 0 ? raw.week : raw?.days || [];
+  const weekArr = Array.isArray(raw?.week) ? raw!.week : raw?.week?.days;
+  const list = raw?.days && raw.days.length > 0 ? raw.days : weekArr || [];
   if (!Array.isArray(list)) return [];
   return list.map((d, idx) => {
     const mmdd = d.date && d.date.length >= 10 ? `${Number(d.date.slice(5, 7))}/${Number(d.date.slice(8, 10))}` : d.date;
-    const condTheme = resolveConditionTheme(d.ptyName || d.ptyCode, d.skyName || d.skyCode, 12);
-    const hasPty = d.ptyName && d.ptyName !== '없음';
+    let dow = d.dayOfWeek || '';
+    if (!dow && d.date) {
+      const dt = new Date(`${d.date}T00:00:00+09:00`);
+      if (!Number.isNaN(dt.getTime())) dow = KOR_WEEKDAYS[dt.getDay()];
+    }
+    const minVal = isValidNumber(d.tmN) ? d.tmN : isValidNumber(d.min) ? d.min! : null;
+    const maxVal = isValidNumber(d.tmX) ? d.tmX : isValidNumber(d.max) ? d.max! : null;
+    const popVal = isValidNumber(d.popMax) ? d.popMax : isValidNumber(d.pop) ? d.pop! : null;
+    const skyLabel = d.skyName || d.sky || d.wf || null;
+    const ptyLabel = d.ptyName || null;
+    const condTheme = resolveConditionTheme(ptyLabel || d.ptyCode, skyLabel || d.skyCode, 12);
+    const hasPty = ptyLabel && ptyLabel !== '없음';
+    const cmpMaxAll = findBasisStat(d.maxCmp, 'all');
+    const cmpMinAll = findBasisStat(d.minCmp, 'all');
+    const normalMax = isValidNumber(d.normalMax) ? d.normalMax! : isValidNumber(cmpMaxAll?.mean) ? cmpMaxAll!.mean : null;
+    const normalMin = isValidNumber(d.normalMin) ? d.normalMin! : isValidNumber(cmpMinAll?.mean) ? cmpMinAll!.mean : null;
+
     return {
       date: d.date,
       dateLabel: mmdd,
-      dayOfWeek: idx === 0 ? '오늘' : idx === 1 ? '내일' : d.dayOfWeek || '',
+      dayOfWeek: idx === 0 ? '오늘' : idx === 1 ? '내일' : dow,
       isToday: idx === 0,
-      minTempText: formatTemp(d.tmN),
-      maxTempText: formatTemp(d.tmX),
-      minVal: isValidNumber(d.tmN) ? d.tmN : null,
-      maxVal: isValidNumber(d.tmX) ? d.tmX : null,
-      normalMinVal: isValidNumber(d.normalMin) ? d.normalMin! : null,
-      normalMaxVal: isValidNumber(d.normalMax) ? d.normalMax! : null,
-      popText: isValidNumber(d.popMax) ? `${Math.round(d.popMax)}%` : MISSING_TEXT,
+      minTempText: formatTemp(minVal),
+      maxTempText: formatTemp(maxVal),
+      minVal,
+      maxVal,
+      normalMinVal: normalMin,
+      normalMaxVal: normalMax,
+      popText: isValidNumber(popVal) ? `${Math.round(popVal)}%` : MISSING_TEXT,
       conditionIcon: condTheme,
-      conditionText: hasPty ? d.ptyName! : d.skyName || MISSING_TEXT,
-      sourceLabel: d.source || (idx < 3 ? '단기예보' : '중기예보'),
+      conditionText: hasPty ? ptyLabel! : skyLabel || MISSING_TEXT,
+      sourceLabel: d.source || d.wxSource || d.maxSource || (idx < 3 ? '단기예보' : '중기예보'),
     };
   });
 }
 
 export function mapTodayHourlySeries(raw: ApiRtTodayResponse | undefined) {
-  if (!raw?.hourly || !Array.isArray(raw.hourly)) return [];
-  return raw.hourly.map((h) => ({
-    label: `${h.hour}시`,
-    primaryValue: isValidNumber(h.obs) ? h.obs : isValidNumber(h.fcst) ? h.fcst : null,
-    baselineValue: isValidNumber(h.compare?.mean) ? h.compare!.mean : null,
-    kind: (isValidNumber(h.obs) ? 'obs' : 'fcst') as 'obs' | 'fcst',
-    note: isValidNumber(h.obs) ? '실황 관측' : h.fcstSource ? `${h.fcstSource}` : '예보',
-  }));
+  const list = raw?.hourly || raw?.hours || [];
+  if (!Array.isArray(list)) return [];
+  return list.map((h) => {
+    const baseMean = isValidNumber(h.compare?.mean)
+      ? h.compare!.mean
+      : isValidNumber(h.base?.all)
+      ? h.base!.all!
+      : null;
+    return {
+      label: `${h.hour}시`,
+      primaryValue: isValidNumber(h.obs) ? h.obs : isValidNumber(h.fcst) ? h.fcst : null,
+      baselineValue: baseMean,
+      kind: (isValidNumber(h.obs) ? 'obs' : 'fcst') as 'obs' | 'fcst',
+      note: isValidNumber(h.obs) ? '실황 관측' : h.fcstSource ? `${h.fcstSource}` : '예보',
+    };
+  });
 }

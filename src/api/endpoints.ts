@@ -36,9 +36,14 @@ export const WEATHER_ENDPOINTS = {
   similar: (station: string) => `${API_BASE}/rt/similar?station=${encodeURIComponent(station)}`,
   stories: (station: string) => `${API_BASE}/rt/stories?station=${encodeURIComponent(station)}`,
   seasons: (station: string, basis: BasisId = 'all') => `${API_BASE}/rt/seasons?station=${encodeURIComponent(station)}&basis=${encodeURIComponent(basis)}`,
-  yearly: (station: string, metric = 'ta_avg') => `${API_BASE}/stats/yearly?station=${encodeURIComponent(station)}&metric=${encodeURIComponent(metric)}`,
+  yearly: (station: string, metric = 'avg_temp') => `${API_BASE}/stats/yearly?station=${encodeURIComponent(station)}&metric=${encodeURIComponent(metric)}`,
   regionStats: (stations = '108,159,184') => `${API_BASE}/stats/region?stations=${encodeURIComponent(stations)}`,
-  dateWeather: (station: string, month: number, day: number) => `${API_BASE}/stats/date-weather?stn=${encodeURIComponent(station)}&m=${month}&d=${day}`,
-  dateBattle: (station: string, date1: string, date2: string) => `${API_BASE}/stats/date-battle?stn=${encodeURIComponent(station)}&date1=${encodeURIComponent(date1)}&date2=${encodeURIComponent(date2)}`,
+  dateWeather: (station: string, month: number, day: number) => `${API_BASE}/stats/date-weather?stn=${encodeURIComponent(station)}&cal=solar&m=${month}&d=${day}&period=recent10&part=daily`,
+  dateBattle: (station: string, date1: string, date2: string) => {
+    const [, m1 = '10', d1 = '22'] = date1.split('-');
+    const [, m2 = '5', d2 = '5'] = date2.split('-');
+    const cases = `A.${station}.S.${Number(m1)}.${Number(d1)}.0,B.${station}.S.${Number(m2)}.${Number(d2)}.0`;
+    return `${API_BASE}/stats/date-battle?stn=${encodeURIComponent(station)}&cases=${encodeURIComponent(cases)}&period=recent10&part=summary&date1=${encodeURIComponent(date1)}&date2=${encodeURIComponent(date2)}`;
+  },
   highlights: (station: string) => `${API_BASE}/stats/highlights?station=${encodeURIComponent(station)}`,
 } as const;
