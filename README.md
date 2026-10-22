@@ -1,22 +1,33 @@
-# 이날 (Inal)
+# 이날 (Inal) — 이야기가 있는 날씨
 
-휴대폰에서 카드를 넘기며 보는 날씨입니다. 수집과 통계 계산은 [weather.nuni.co.kr](https://weather.nuni.co.kr)이 하고, 이 저장소는 그 조회 결과만 읽습니다.
+> **모바일 전용 날씨 조회·비교·이야기 웹서비스 (`https://inal.nuni.co.kr`)**  
+> 1990년부터 쌓인 기상청 관측(ASOS)과 초단기실황·단기·중기예보를 바탕으로, 복잡한 통계 표 대신 **좌우로 넘기는 감성적인 날씨 카드**로 오늘과 과거의 날씨 이야기를 전합니다.
 
-## 실행
+---
+
+## 1. 빠른 시작 (개발 및 실행)
 
 ```bash
+# 1. 환경변수 파일 준비
+cp .env.example .env
+
+# 2. 패키지 설치 및 개발 서버 실행 (읽기 전용 Weather API 프록시 자동 연동)
 npm install
 npm run dev
-```
 
-브라우저에서 오늘 카드가 보이면 됩니다. 개발 서버는 `/weather` 로 기존 조회 API를 프록시합니다.
-
-```bash
-npm test
+# 3. 프로덕션 빌드 및 운영 프록시 서버 실행
 npm run build
-WEATHER_ORIGIN=https://weather.nuni.co.kr PORT=8080 npm start
+npm run start
+
+# 4. 자동 구조·프록시·결측치 규칙 검증 테스트
+npm run verify
 ```
 
-`npm start` 는 `dist` 를 열고, 허용된 GET 만 기존 서버로 넘깁니다.
+- 빌드 전에도 `public/mobile-preview.html`을 브라우저에서 바로 열면 4개 탭과 카드 스와이프, 지역 전환, 바텀시트 동작을 즉시 확인할 수 있습니다.
 
-환경변수는 `.env.example` 을 보세요. 비밀키는 없습니다.
+## 2. 문서 안내 (`docs/`)
+- `docs/WEATHER_API_MAPPING.md`: 기존 Weather API 17개 엔드포인트 실제 응답 구조 및 매핑 명세
+- `docs/ARCHITECTURE.md`: 프런트엔드 3계층 데이터 구조, 프록시 보안, 모바일 UX 설계
+- `docs/FEATURE_STATUS.md`: 4대 화면(오늘·예보·비교·이야기) 구현 현황 및 후속 과제
+- `docs/DEPLOY.md`: `https://inal.nuni.co.kr` 독립 배포 및 Nginx 리버스 프록시 설정 가이드
+- `docs/WEATHER_BACKEND_PROPOSALS.md`: 기존 Weather 백엔드 개선 제안서

@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --inal-outer-bg: #EAE6DD;
+  --inal-bg: #F6F3EC;
+  --inal-surface: #FFFFFF;
+  --inal-surface-subtle: #F2EFE8;
+  --inal-text: #23262E;
+  --inal-text-muted: #5A606D;
+  --inal-text-soft: #858C99;
+  --inal-border: #E6E1D7;
+  --inal-accent: #E06D44;
+  --inal-accent-soft: #FDF0EB;
+  --inal-weather-sunny: #E59A28;
+  --inal-weather-cloudy: #64748B;
+  --inal-weather-rain: #2B6CB0;
+  --inal-weather-snow: #4A90B8;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html[data-font-scale='large'] {
+  font-size: 17.5px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100dvh;
+  background-color: var(--inal-outer-bg);
+  color: var(--inal-text);
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

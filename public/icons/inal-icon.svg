@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="120" fill="#F6F3EC"/>
+  <circle cx="204" cy="196" r="84" fill="#E06D44"/>
+  <path d="M216 356H364C403.765 356 436 323.765 436 284C436 246.481 407.288 215.675 370.662 212.306C358.678 166.142 316.701 132 266.667 132C207.756 132 160 179.756 160 238.667C160 244.445 160.46 250.117 161.345 255.648C139.895 264.148 124 285.094 124 309.6C124 335.226 144.774 356 170.4 356H216Z" fill="#23262E"/>
+  <text x="256" y="442" text-anchor="middle" fill="#23262E" font-family="Pretendard, Noto Sans KR, sans-serif" font-size="56" font-weight="700" letter-spacing="4">이날</text>
+</svg>

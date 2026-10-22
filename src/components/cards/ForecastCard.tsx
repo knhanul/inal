@@ -1,0 +1,121 @@
+import React from 'react';
+import { ChevronRight } from 'lucide-react';
+import type {
+  HourlyTimelineSlotViewModel,
+  DailyForecastItemViewModel,
+  BottomSheetDetailPayload,
+} from '../../types/viewmodel';
+import type { DataProvenance } from '../../types/domain';
+import type { ApiRtTodayOutfitSegment } from '../../types/api';
+import { ForecastTimeline } from './ForecastTimeline';
+import { WeatherIcon } from '../common/WeatherIcon';
+import { DataSourceLabel } from '../common/DataSourceLabel';
+import { formatTemp, isValidNumber } from '../../api/mappers';
+
+interface ForecastCardProps {
+  title: string;
+  subtitle: string;
+  provenance: DataProvenance;
+  hourlySlots?: HourlyTimelineSlotViewModel[];
+  dailyItems?: DailyForecastItemViewModel[];
+  outfitSegments?: ApiRtTodayOutfitSegment[];
+  detail?: BottomSheetDetailPayload;
+  onOpenDetail?: (detail: BottomSheetDetailPayload) => void;
+}
+
+export const ForecastCard: React.FC<ForecastCardProps> = ({
+  title,
+  subtitle,
+  provenance,
+  hourlySlots,
+  dailyItems,
+  outfitSegments,
+  detail,
+  onOpenDetail,
+}) => {
+  return (
+    <article className="flex flex-col justify-between rounded-card border border-inal-border bg-inal-surface p-5 shadow-card">
+      <div>
+        <DataSourceLabel provenance={provenance} compact />
+        <h3 className="mt-2 text-base font-bold leading-snug text-inal-text">{title}</h3>
+        <p className="mt-0.5 text-xs leading-relaxed text-inal-textMuted">{subtitle}</p>
+      </div>
+
+      {hourlySlots && hourlySlots.length > 0 && (
+        <div className="my-3.5">
+          <ForecastTimeline slots={hourlySlots} />
+        </div>
+      )}
+
+      {outfitSegments && outfitSegments.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <span className="text-[11px] font-bold text-inal-textMuted">시간대별 옷차림 · 강수 참고 가이드</span>
+          <div className="grid grid-cols-2 gap-2">
+            {outfitSegments.slice(0, 4).map((seg) => (
+              <div key={seg.id} className="rounded-xl border border-inal-border/70 bg-inal-surfaceSubtle/60 p-2.5">
+                <div className="flex items-center justify-between text-[11px] font-bold text-inal-text">
+                  <span>{seg.label}</span>
+                  <span className="tabular-nums text-inal-accent">
+                    {isValidNumber(seg.minTa) && isValidNumber(seg.maxTa) ? `${seg.minTa}~${seg.maxTa}℃` : ''}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] font-medium text-inal-text">겉: {seg.outer}</p>
+                <p className="text-[10px] text-inal-textMuted">안: {seg.inner}</p>
+                {seg.note && <p className="mt-0.5 text-[10px] font-semibold text-sky-700">{seg.note}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dailyItems && dailyItems.length > 0 && (
+        <div className="my-3 space-y-2">
+          {dailyItems.map((day) => {
+            const diffFromNormal =
+              isValidNumber(day.maxVal) && isValidNumber(day.normalMaxVal)
+                ? Math.round((day.maxVal - day.normalMaxVal) * 10) / 10
+                : null;
+            return (
+              <div
+                key={day.date}
+                className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs ${
+                  day.isToday ? 'bg-inal-accentSoft/70 font-semibold' : 'bg-inal-surfaceSubtle/60'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-[78px]">
+                  <span className="font-bold text-inal-text">{day.dayOfWeek}</span>
+                  <span className="tabular-nums text-[11px] text-inal-textMuted">{day.dateLabel}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <WeatherIcon condition={day.conditionIcon} size="sm" label={day.conditionText} />
+                  <span className="text-[11px] tabular-nums text-sky-700 font-semibold">{day.popText}</span>
+                </div>
+                <div className="flex items-center gap-2 text-right tabular-nums">
+                  <span className="text-sky-700 font-semibold">{day.minTempText}</span>
+                  <span className="text-inal-textSoft">/</span>
+                  <span className="text-inal-accent font-bold">{day.maxTempText}</span>
+                  {isValidNumber(diffFromNormal) && (
+                    <span className="hidden min-[360px]:inline rounded bg-white px-1.5 py-0.5 text-[10px] text-inal-textMuted">
+                      평년 {formatTemp(diffFromNormal, true)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {detail && onOpenDetail && (
+        <button
+          type="button"
+          onClick={() => onOpenDetail(detail)}
+          className="touch-target mt-3 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
+        >
+          <span>상세 시계열 · 발표 시각 · 기준 확인</span>
+          <ChevronRight className="h-4 w-4 text-inal-textMuted" />
+        </button>
+      )}
+    </article>
+  );
+};

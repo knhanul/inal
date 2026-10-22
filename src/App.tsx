@@ -1,69 +1,125 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { getStations } from "./api/weather";
-import type { BasisId } from "./api/types";
-import { BottomNavigation, type TabId } from "./components/BottomNavigation";
-import { DetailBottomSheet } from "./components/DetailBottomSheet";
-import { Header } from "./components/Header";
-import { RegionSelector } from "./components/RegionSelector";
-import { loadPrefs, savePrefs } from "./device/prefs";
-import { CompareScreen } from "./screens/CompareScreen";
-import { ForecastScreen } from "./screens/ForecastScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { StoryScreen } from "./screens/StoryScreen";
-import { TodayScreen } from "./screens/TodayScreen";
+import React, { useState, useEffect, useCallback } from 'react';
+import type { MainTabId, BottomSheetDetailPayload } from './types/viewmodel';
+import { useUserSettings } from './store/settingsStore';
+import { isExplicitDevFallbackEnabled } from './api/client';
+import { AppShell } from './components/layout/AppShell';
+import { Header } from './components/layout/Header';
+import { BottomNavigation } from './components/layout/BottomNavigation';
+import { RegionSelector } from './components/layout/RegionSelector';
+import { SettingsSheet } from './components/layout/SettingsSheet';
+import { DetailBottomSheet } from './components/common/DetailBottomSheet';
+import { TodayPage } from './pages/TodayPage';
+import { ForecastPage } from './pages/ForecastPage';
+import { ComparePage } from './pages/ComparePage';
+import { StoryPage } from './pages/StoryPage';
 
-function tabFromHash(): TabId | "settings" {
-  const h = location.hash.replace("#/", "");
-  if (h === "forecast" || h === "compare" || h === "stories" || h === "settings") return h;
-  return "today";
+const VALID_TABS: MainTabId[] = ['today', 'forecast', 'compare', 'story'];
+
+function resolveInitialTab(): MainTabId {
+  if (typeof window === 'undefined') return 'today';
+  const params = new URLSearchParams(window.location.search);
+  const tabParam = params.get('tab') as MainTabId | null;
+  if (tabParam && VALID_TABS.includes(tabParam)) return tabParam;
+  return 'today';
 }
 
-export function App() {
-  const prefs0 = loadPrefs();
-  const [stationId, setStationId] = useState(prefs0.stationId);
-  const [basis, setBasis] = useState<BasisId>(prefs0.basis);
-  const [tab, setTab] = useState<TabId | "settings">(tabFromHash);
-  const [regionOpen, setRegionOpen] = useState(false);
-  const [detail, setDetail] = useState<{ title: string; body: string } | null>(null);
-  const stationsQ = useQuery({ queryKey: ["stations"], queryFn: getStations, staleTime: 300_000 });
-  const stations = useMemo(() => (stationsQ.data?.data || []).filter((s) => s.enabled !== false), [stationsQ.data]);
-  const station = stations.find((s) => s.station_id === stationId) || stations[0];
+export const App: React.FC = () => {
+  const { settings, selectStation, setDefaultStation, setBasis, setFontScale, resetSettings } = useUserSettings();
+  const [activeTab, setActiveTab] = useState<MainTabId>(resolveInitialTab);
+  const [isRegionOpen, setIsRegionOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeDetail, setActiveDetail] = useState<BottomSheetDetailPayload | null>(null);
 
-  useEffect(() => { savePrefs({ stationId, basis }); }, [stationId, basis]);
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-font-scale', settings.fontScale);
+    }
+  }, [settings.fontScale]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setActiveTab(resolveInitialTab());
+      setActiveDetail(null);
+      setIsRegionOpen(false);
+      setIsSettingsOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  function go(next: TabId) {
-    location.hash = `#/${next}`;
-    setTab(next);
-    setDetail(null);
-  }
+  const handleSelectTab = useCallback(
+    (nextTab: MainTabId) => {
+      setActiveTab(nextTab);
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', nextTab);
+        url.searchParams.set('stn', settings.stationId);
+        window.history.pushState({ tab: nextTab }, '', url.toString());
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [settings.stationId]
+  );
 
-  const name = station?.station_name || (stationsQ.isLoading ? "지역" : stationId);
+  const handleSelectStation = useCallback(
+    (nextStationId: string) => {
+      selectStation(nextStationId);
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('stn', nextStationId);
+        window.history.replaceState({}, '', url.toString());
+      }
+    },
+    [selectStation]
+  );
 
   return (
-    <div className="phone">
-      <Header region={name} onRegion={() => setRegionOpen(true)} onSettings={() => { location.hash = "#/settings"; setTab("settings"); }} />
-      <main className="stage">
-        {tab === "today" ? <TodayScreen station={stationId} basis={basis} onOpen={(title, body) => setDetail({ title, body })} /> : null}
-        {tab === "forecast" ? <ForecastScreen station={stationId} basis={basis} /> : null}
-        {tab === "compare" ? <CompareScreen station={stationId} basis={basis} /> : null}
-        {tab === "stories" ? <StoryScreen station={stationId} basis={basis} /> : null}
-      </main>
-      <BottomNavigation tab={tab === "settings" ? "today" : tab} onChange={go} />
-      {regionOpen ? (
-        <RegionSelector stations={stations} current={stationId} onClose={() => setRegionOpen(false)} onPick={(id) => { setStationId(id); setRegionOpen(false); }} />
-      ) : null}
-      {detail ? (
-        <DetailBottomSheet title={detail.title} onClose={() => setDetail(null)}>
-          {detail.body.split("\n").map((line, i) => <p key={i} className="mb-2 text-sm leading-relaxed">{line}</p>)}
-        </DetailBottomSheet>
-      ) : null}
-      {tab === "settings" ? <SettingsScreen basis={basis} stationName={name} onBasis={setBasis} onClose={() => go("today")} /> : null}
-    </div>
+    <AppShell
+      header={
+        <Header
+          stationId={settings.stationId}
+          basis={settings.basis}
+          isDevFallbackActive={isExplicitDevFallbackEnabled()}
+          onOpenRegionSelector={() => setIsRegionOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      }
+      bottomNav={<BottomNavigation activeTab={activeTab} onSelectTab={handleSelectTab} />}
+    >
+      {activeTab === 'today' && <TodayPage stationId={settings.stationId} basis={settings.basis} onOpenDetail={setActiveDetail} />}
+      {activeTab === 'forecast' && <ForecastPage stationId={settings.stationId} basis={settings.basis} onOpenDetail={setActiveDetail} />}
+      {activeTab === 'compare' && (
+        <ComparePage
+          stationId={settings.stationId}
+          basis={settings.basis}
+          onChangeBasis={setBasis}
+          onSelectStation={handleSelectStation}
+          onOpenDetail={setActiveDetail}
+        />
+      )}
+      {activeTab === 'story' && <StoryPage stationId={settings.stationId} onOpenDetail={setActiveDetail} />}
+
+      <RegionSelector
+        isOpen={isRegionOpen}
+        currentStationId={settings.stationId}
+        recentStationIds={settings.recentStationIds}
+        onSelectStation={handleSelectStation}
+        onClose={() => setIsRegionOpen(false)}
+      />
+
+      <SettingsSheet
+        isOpen={isSettingsOpen}
+        settings={settings}
+        onChangeDefaultStation={setDefaultStation}
+        onChangeBasis={setBasis}
+        onChangeFontScale={setFontScale}
+        onReset={resetSettings}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <DetailBottomSheet detail={activeDetail} onClose={() => setActiveDetail(null)} />
+    </AppShell>
   );
-}
+};
+
+export default App;

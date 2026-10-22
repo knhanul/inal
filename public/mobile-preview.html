@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0"
+    />
+    <title>이날(Inal) — 이야기가 있는 날씨 (모바일 실행 미리보기)</title>
+    <style>
+      :root {
+        --inal-outer-bg: #eae6dd;
+        --inal-bg: #f6f3ec;
+        --inal-surface: #ffffff;
+        --inal-surface-subtle: #f2efe8;
+        --inal-text: #23262e;
+        --inal-text-muted: #5a606d;
+        --inal-text-soft: #858c99;
+        --inal-border: #e6e1d7;
+        --inal-accent: #e06d44;
+        --inal-accent-soft: #fdf0eb;
+        --inal-rain: #2b6cb0;
+        --inal-rain-soft: #ebf4ff;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100dvh;
+        background: var(--inal-outer-bg);
+        color: var(--inal-text);
+        font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+          'Noto Sans KR', sans-serif;
+        overflow-x: hidden;
+        word-break: keep-all;
+      }
+      .app-outer {
+        display: flex;
+        justify-content: center;
+        min-height: 100dvh;
+        width: 100%;
+      }
+      .app-shell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 320px;
+        max-width: 430px;
+        min-height: 100dvh;
+        background: var(--inal-bg);
+        box-shadow: 0 12px 36px rgba(24, 22, 19, 0.12);
+      }
+      .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: rgba(246, 243, 236, 0.95);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--inal-border);
+        padding-top: var(--safe-top);
+      }
+      .header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 56px;
+        padding: 0 14px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .brand-badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: var(--inal-accent-soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--inal-accent);
+        font-weight: 800;
+      }
+      .brand-title {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+      .brand-sub {
+        font-size: 10px;
+        color: var(--inal-text-muted);
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn-touch {
+        min-width: 44px;
+        min-height: 44px;
+        border: 1px solid var(--inal-border);
+        background: var(--inal-surface);
+        color: var(--inal-text);
+        border-radius: 999px;
+        padding: 0 12px;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        cursor: pointer;
+      }
+      .app-main {
+        flex: 1;
+        width: 100%;
+        padding: 12px 14px calc(84px + var(--safe-bottom));
+        overflow-x: hidden;
+      }
+      .chip-bar {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        scrollbar-width: none;
+      }
+      .chip-bar::-webkit-scrollbar {
+        display: none;
+      }
+      .chip {
+        flex-shrink: 0;
+        border: 1px solid var(--inal-border);
+        background: var(--inal-surface);
+        color: var(--inal-text-muted);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .chip.active {
+        background: var(--inal-text);
+        color: #fff;
+        border-color: var(--inal-text);
+      }
+      .carousel-viewport {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 20px;
+      }
+      .carousel-track {
+        display: flex;
+        width: 100%;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .carousel-slide {
+        flex: 0 0 100%;
+        width: 100%;
+        padding: 2px;
+      }
+      .weather-card {
+        background: var(--inal-surface);
+        border: 1px solid var(--inal-border);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 8px 24px -6px rgba(34, 32, 29, 0.06);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .source-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--inal-text-muted);
+      }
+      .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+      }
+      .tag-pill.fcst {
+        background: #f0f9ff;
+        color: #075985;
+        border-color: #bae6fd;
+      }
+      .tag-pill.stats {
+        background: #fffbeb;
+        color: #92400e;
+        border-color: #fde68a;
+      }
+      .hero-temp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 14px 0;
+      }
+      .hero-temp {
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+      .hero-hl {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--inal-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .story-box {
+        background: var(--inal-accent-soft);
+        border-radius: 14px;
+        padding: 13px;
+      }
+      .story-headline {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .story-sub {
+        margin: 4px 0 0;
+        font-size: 12px;
+        color: var(--inal-text-muted);
+        line-height: 1.45;
+      }
+      .dist-bar {
+        position: relative;
+        height: 8px;
+        background: #fff;
+        border-radius: 999px;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+      .dist-normal {
+        position: absolute;
+        left: 15%;
+        width: 70%;
+        top: 0;
+        bottom: 0;
+        background: #fcd34d;
+        border-radius: 999px;
+      }
+      .dist-pin {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 9px;
+        background: var(--inal-accent);
+        border-radius: 999px;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .metric-cell {
+        background: var(--inal-surface-subtle);
+        border-radius: 12px;
+        padding: 9px 10px;
+      }
+      .metric-label {
+        font-size: 11px;
+        color: var(--inal-text-muted);
+        display: block;
+      }
+      .metric-val {
+        font-size: 13px;
+        font-weight: 700;
+        margin-top: 2px;
+        display: block;
+        font-variant-numeric: tabular-nums;
+      }
+      .metric-sub {
+        font-size: 10px;
+        color: var(--inal-text-soft);
+        display: block;
+        margin-top: 2px;
+      }
+      .detail-btn {
+        margin-top: 12px;
+        width: 100%;
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid var(--inal-border);
+        background: var(--inal-surface-subtle);
+        color: var(--inal-text);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .pagination-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+      .dots {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--inal-border);
+        transition: all 0.2s;
+      }
+      .dot.active {
+        width: 22px;
+        background: var(--inal-accent);
+      }
+      .timeline-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 6px 0;
+        scrollbar-width: none;
+      }
+      .timeline-row::-webkit-scrollbar {
+        display: none;
+      }
+      .slot-item {
+        min-width: 64px;
+        background: var(--inal-surface-subtle);
+        border: 1px solid var(--inal-border);
+        border-radius: 14px;
+        padding: 9px 6px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .slot-item.rain {
+        background: var(--inal-rain-soft);
+        border-color: #bfdbfe;
+      }
+      .list-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .list-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--inal-surface-subtle);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 12px;
+      }
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 30;
+        width: 100%;
+        max-width: 430px;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--inal-border);
+        padding-bottom: var(--safe-bottom);
+      }
+      .bottom-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        height: 64px;
+        padding: 0 8px;
+      }
+      .nav-btn {
+        min-height: 44px;
+        border: none;
+        background: transparent;
+        color: var(--inal-text-muted);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+      }
+      .nav-btn.active {
+        color: var(--inal-accent);
+        font-weight: 800;
+      }
+      .nav-btn.active::before {
+        content: '';
+        position: absolute;
+        top: 4px;
+        width: 24px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--inal-accent);
+      }
+      .sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.45);
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      .sheet-backdrop.open {
+        display: flex;
+      }
+      .sheet-panel {
+        width: 100%;
+        max-width: 430px;
+        max-height: 84dvh;
+        background: var(--inal-surface);
+        border-radius: 24px 24px 0 0;
+        padding: 18px 18px calc(18px + var(--safe-bottom));
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-outer">
+      <div class="app-shell">
+        <header class="app-header">
+          <div class="header-bar">
+            <div class="brand">
+              <div class="brand-badge">☀</div>
+              <div>
+                <div class="brand-title">이날</div>
+                <div class="brand-sub">이야기가 있는 날씨</div>
+              </div>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn-touch" id="btn-region" aria-label="지역 선택">
+                📍 <span id="current-station-label">서울</span> · <span id="current-basis-label">1990년 이후</span> ▾
+              </button>
+              <button type="button" class="btn-touch" id="btn-settings" aria-label="설정 열기">
+                ⚙
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main class="app-main" id="main-content"></main>
+
+        <nav class="bottom-nav" aria-label="하단 메뉴">
+          <div class="bottom-nav-grid">
+            <button type="button" class="nav-btn active" data-tab="today">
+              <span>☀</span>
+              <span>오늘</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="forecast">
+              <span>🕒</span>
+              <span>예보</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="compare">
+              <span>📊</span>
+              <span>비교</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="story">
+              <span>📖</span>
+              <span>이야기</span>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </div>
+
+    <div class="sheet-backdrop" id="sheet-backdrop" role="dialog" aria-modal="true">
+      <div class="sheet-panel" id="sheet-panel"></div>
+    </div>
+
+    <script>
+      const STATIONS = [
+        { id: '108', name: '서울', group: '수도권', ta: 21.4, diff: '+6.6', low: 13.0, high: 25.0 },
+        { id: '112', name: '인천', group: '수도권', ta: 20.6, diff: '+5.8', low: 13.5, high: 23.8 },
+        { id: '119', name: '수원', group: '수도권', ta: 20.9, diff: '+6.1', low: 12.2, high: 24.5 },
+        { id: '133', name: '대전', group: '충청', ta: 21.7, diff: '+6.3', low: 12.8, high: 25.2 },
+        { id: '143', name: '대구', group: '경상', ta: 19.7, diff: '+4.2', low: 13.1, high: 24.9 },
+        { id: '156', name: '광주', group: '전라', ta: 22.1, diff: '+6.0', low: 14.0, high: 25.6 },
+        { id: '159', name: '부산', group: '경상', ta: 22.4, diff: '+5.1', low: 15.8, high: 25.4 },
+        { id: '184', name: '제주', group: '제주', ta: 22.9, diff: '+4.9', low: 17.2, high: 26.1 },
+      ];
+
+      function safeGetStorage(key, fallback) {
+        try {
+          return localStorage.getItem(key) || fallback;
+        } catch (e) {
+          return fallback;
+        }
+      }
+
+      function safeSetStorage(key, val) {
+        try {
+          localStorage.setItem(key, val);
+        } catch (e) {}
+      }
+
+      let state = {
+        tab: 'today',
+        slideIndex: 0,
+        stationId: safeGetStorage('inal_preview_stn', '108'),
+        basis: safeGetStorage('inal_preview_basis', '1990년 이후'),
+      };
+
+      function getStation() {
+        return STATIONS.find((s) => s.id === state.stationId) || STATIONS[0];
+      }
+
+      function getSlidesForTab(tab, st) {
+        if (tab === 'today') {
+          return {
+            labels: ['지금 날씨', '오늘의 이야기', '12시간·옷차림', '과거 평균 비교', '닮은 과거 날'],
+            slides: [
+              `<article class="weather-card">
+                <div class="source-row">
+                  <span><span class="tag-pill">관측 실황</span> 기상청 초단기실황 · 21:00 최신</span>
+                  <span>흐림</span>
+                </div>
+                <div class="hero-temp-row">
+                  <div>
+                    <div class="hero-temp">${st.ta}℃</div>
+                    <div class="hero-hl">오늘 최저 <strong style="color:#0369a1">${st.low}℃</strong> / 최고 <strong style="color:#e06d44">${st.high}℃</strong></div>
+                  </div>
+                  <div style="font-size:40px">⛅</div>
+                </div>
+                <div class="story-box">
+                  <p class="story-headline">평소 이 시각보다 ${st.diff}℃ 따뜻한 저녁이에요</p>
+                  <p class="story-sub">${state.basis}(1990~2025) 같은 시기 이 시각 540개 표본 중 따뜻한 쪽 5위 (백분위 99.2%)</p>
+                  <div class="dist-bar">
+                    <div class="dist-normal"></div>
+                    <div class="dist-pin" style="left:92%"></div>
+                  </div>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric-cell"><span class="metric-label">습도</span><span class="metric-val">50%</span><span class="metric-sub">평균 64%</span></div>
+                  <div class="metric-cell"><span class="metric-label">바람</span><span class="metric-val">동남동 2.4m/s</span><span class="metric-sub">평균 1.8m/s</span></div>
+                  <div class="metric-cell"><span class="metric-label">1시간 강수</span><span class="metric-val">0mm</span><span class="metric-sub">강수형태 없음</span></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('hero')">
+                  <span>3대 기준 기간 분포 · 계산 근거 상세보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row">
+                  <span class="tag-pill stats">오늘의 날씨 이야기 1/4</span>
+                  <span>후보 13개 중 선별</span>
+                </div>
+                <h3 style="margin:12px 0 6px;font-size:16px">${st.name} 지금 ${st.ta}℃ — 같은 시각 평소보다 ${st.diff}℃</h3>
+                <p style="margin:0;font-size:12px;color:var(--inal-text-muted);line-height:1.5">
+                  1990~2025년 같은 시기(±7일) 같은 시각 평균 14.8℃ 대비 ${st.diff}℃ 높으며, 내일 출근길(7~9시)에는 비 예보(강수확률 60%)가 있습니다.
+                </p>
+                <div class="list-rows">
+                  <div class="list-row"><span>2/4 이번 주는 이맘때보다 +3.2℃ 따뜻할 전망</span><strong>혼합</strong></div>
+                  <div class="list-row"><span>3/4 관측 가능한 8곳 중 7곳이 평소보다 +3℃↑</span><strong>관측</strong></div>
+                  <div class="list-row"><span>4/4 내일 출근길(7~9시) 비 예보 — 우산 챙기세요</span><strong>예보</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                  <span>어떻게 계산하고 선별했나요?</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row">
+                  <span><span class="tag-pill fcst">기상예보</span> 초단기·단기예보 · 20:00 발표</span>
+                </div>
+                <h3 style="margin:10px 0 4px;font-size:15px">앞으로 12시간 예보와 옷차림</h3>
+                <p style="margin:0 0 8px;font-size:12px;color:var(--inal-text-muted)">얇은 가디건·긴팔 · 일교차 12℃, 출근길 우산 참고</p>
+                <div class="timeline-row">
+                  <div class="slot-item"><div>22시</div><strong>21℃</strong><div style="font-size:10px">30%</div></div>
+                  <div class="slot-item"><div>0시</div><strong>20℃</strong><div style="font-size:10px">30%</div></div>
+                  <div class="slot-item"><div>3시</div><strong>18℃</strong><div style="font-size:10px">30%</div></div>
+                  <div class="slot-item"><div>6시</div><strong>17℃</strong><div style="font-size:10px">30%</div></div>
+                  <div class="slot-item rain"><div>7시</div><strong>17℃</strong><div style="font-size:10px;color:#0369a1">☂60%</div></div>
+                  <div class="slot-item rain"><div>8시</div><strong>17℃</strong><div style="font-size:10px;color:#0369a1">☂60%</div></div>
+                </div>
+                <div class="list-rows">
+                  <div class="list-row"><span>밤 (21~6시) · 겉 맨투맨 / 안 가디건</span><strong>17~21℃</strong></div>
+                  <div class="list-row"><span>출근 (7~9시) · 맨투맨·니트 · 우산</span><strong>17~18℃</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('forecast12')">
+                  <span>시간별 실황·예보 분리 차트 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">3대 기준 비교</span><span>ASOS 1990~2025</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">지금 값과 3개 기준 평균 비교</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>1990년 이후 평균 (1990~2025)</span><strong>14.8℃ (${st.diff}℃)</strong></div>
+                  <div class="list-row"><span>최근 10년 평균 (2016~2025)</span><strong>14.8℃ (${st.diff}℃)</strong></div>
+                  <div class="list-row"><span>최근 5년 평균 (2021~2025)</span><strong>14.8℃ (${st.diff}℃)</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('hero')">
+                  <span>습도·강수·바람 비교표 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">닮은 과거 날씨</span><span>ASOS 시간자료</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">오늘과 기온 흐름이 비슷했던 과거의 날</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>1위 · 1998-10-15 (최고 23.2℃)</span><strong>유사도 96%</strong></div>
+                  <div class="list-row"><span>2위 · 2017-10-10 (최고 22.6℃)</span><strong>유사도 94%</strong></div>
+                  <div class="list-row"><span>3위 · 2023-10-18 (최고 22.1℃)</span><strong>유사도 92%</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                  <span>유사도 계산 기준 보기</span><span>›</span>
+                </button>
+              </article>`
+            ]
+          };
+        }
+        if (tab === 'forecast') {
+          return {
+            labels: ['12시간·72시간 예보', '10일 일별 예보', '바람 예보'],
+            slides: [
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill fcst">시간별 예보</span><span>초단기·단기예보 결합</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 12시간 · 72시간 예보 타임라인</h3>
+                <div class="timeline-row">
+                  <div class="slot-item"><div>21시</div><strong>20℃</strong><div>30%</div></div>
+                  <div class="slot-item"><div>0시</div><strong>20℃</strong><div>30%</div></div>
+                  <div class="slot-item"><div>3시</div><strong>18℃</strong><div>30%</div></div>
+                  <div class="slot-item rain"><div>7시</div><strong>17℃</strong><div>☂60%</div></div>
+                  <div class="slot-item"><div>12시</div><strong>21℃</strong><div>20%</div></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('forecast12')">
+                  <span>발표 시각 및 시간별 상세 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill fcst">10일 예보</span><span>단기 + 중기예보</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 주간 · 10일 일별 예보</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>오늘 (최저/최고)</span><strong>13℃ / 25℃ (평년 +4.7℃)</strong></div>
+                  <div class="list-row"><span>내일 · 오전 비(60%)</span><strong>16℃ / 22℃ (평년 +2.1℃)</strong></div>
+                  <div class="list-row"><span>모레 · 구름많음</span><strong>11℃ / 20℃ (평년 +0.5℃)</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('forecast12')">
+                  <span>10일 전체 일정 및 예년 비교 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill fcst">바람 예보</span><span>/api/rt/forecast-wind</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 시간별 풍향·풍속 예보</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>22시 · 동남동풍</span><strong>3.0m/s</strong></div>
+                  <div class="list-row"><span>04시 · 남동풍</span><strong>4.2m/s</strong></div>
+                  <div class="list-row"><span>12시 · 서남서풍</span><strong>5.2m/s (강풍 주의)</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('forecast12')">
+                  <span>풍향·풍속 상세 보기</span><span>›</span>
+                </button>
+              </article>`
+            ]
+          };
+        }
+        if (tab === 'compare') {
+          return {
+            labels: ['한눈에 보기', '과거 평균 비교', '연도별 비교', '지역별 비교', '생활·기록'],
+            slides: [
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill">한눈에 보기</span><span>전국 8개 지점</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">지금 전국은 · 제주 22.9℃ 가장 따뜻</h3>
+                <div class="list-rows">
+                  ${STATIONS.slice(0, 4).map((s) => `<div class="list-row"><span>${s.name}(${s.id})</span><strong>${s.ta}℃ (${s.diff}℃)</strong></div>`).join('')}
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('hero')">
+                  <span>전국 8대 관측소 전체 비교 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">과거 평균 비교</span><span>${state.basis}</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 같은 시기·시각 분포 위치</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>백분위 / 순위</span><strong>99.2% (상위 5위/540)</strong></div>
+                  <div class="list-row"><span>과거 최고 (1998-10-11)</span><strong>22.4℃</strong></div>
+                  <div class="list-row"><span>과거 최저 (1999-10-16)</span><strong>5.2℃</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('hero')">
+                  <span>분포 띠 상세 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">연도별 비교</span><span>/api/stats/yearly</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 1990년 이후 연도별 10월 평균기온</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>2025년 (관측 31/31일)</span><strong>15.9℃</strong></div>
+                  <div class="list-row"><span>2024년 (관측 31/31일)</span><strong>16.0℃</strong></div>
+                  <div class="list-row"><span>1990년 (관측 31/31일)</span><strong>14.1℃</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                  <span>연도별 추이 그래프 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">지역별 비교</span><span>/api/stats/region</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">서울 · 부산 · 제주 1990년대 대비 최근 10년</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>서울 연평균 기온</span><strong>13.5℃ (+0.9℃)</strong></div>
+                  <div class="list-row"><span>부산 연평균 기온</span><strong>15.4℃ (+0.7℃)</strong></div>
+                  <div class="list-row"><span>제주 연평균 기온</span><strong>16.8℃ (+0.8℃)</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                  <span>지역별 상세 비교표 보기</span><span>›</span>
+                </button>
+              </article>`,
+              `<article class="weather-card">
+                <div class="source-row"><span class="tag-pill stats">계절 신호 · 비 달력</span><span>/api/rt/seasons</span></div>
+                <h3 style="margin:10px 0 4px;font-size:15px">계절 신호와 최근 30일 비 달력</h3>
+                <div class="list-rows">
+                  <div class="list-row"><span>첫 30℃ (평균 06/01)</span><strong>올해 5월 14일 (-18일)</strong></div>
+                  <div class="list-row"><span>가장 최근 30℃ (평균 09/10)</span><strong>올해 10월 12일 (+32일)</strong></div>
+                  <div class="list-row"><span>최근 30일 비 온 날</span><strong>3일 (합계 28.9mm)</strong></div>
+                </div>
+                <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                  <span>계절 신호 집계 기준 보기</span><span>›</span>
+                </button>
+              </article>`
+            ]
+          };
+        }
+        return {
+          labels: ['질문으로 보는 날씨', '내가 기억하는 이날', '날씨 배틀', '흥미로운 기록'],
+          slides: [
+            `<article class="weather-card">
+              <div class="source-row"><span class="tag-pill stats">질문으로 보는 날씨</span><span>1990~2025 관측</span></div>
+              <h3 style="margin:10px 0 4px;font-size:16px">우리 동네(${st.name})는 예전보다 더워졌을까?</h3>
+              <p style="font-size:12px;color:var(--inal-text-muted);line-height:1.5">
+                1990~1999년 평균(12.6℃)보다 최근 완료된 10개 연도(2016~2025년) 평균이 <strong>+0.9℃</strong> 높아졌습니다.
+              </p>
+              <div class="list-rows">
+                <div class="list-row"><span>비 오는 날이 더 많아졌을까?</span><strong>강수 강도 +1.8mm/일</strong></div>
+                <div class="list-row"><span>올해 더위는 예년보다 일찍 왔을까?</span><strong>첫 30℃ 18일 빠름</strong></div>
+              </div>
+              <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                <span>질문별 관측 근거 상세보기</span><span>›</span>
+              </button>
+            </article>`,
+            `<article class="weather-card">
+              <div class="source-row"><span class="tag-pill stats">내가 기억하는 이날</span><span>/api/stats/date-weather</span></div>
+              <h3 style="margin:10px 0 4px;font-size:15px">10월 22일 ${st.name}의 역대 날씨</h3>
+              <p style="font-size:12px;color:var(--inal-text-muted)">1990~2025년 중 81%의 해에 비 없이 선선했던 가을날입니다.</p>
+              <div class="list-rows">
+                <div class="list-row"><span>2025-10-22 (맑고 포근함)</span><strong>11.2℃ ~ 21.4℃</strong></div>
+                <div class="list-row"><span>2024-10-22 (약한 가을비 3.2mm)</span><strong>10.9℃ ~ 19.8℃</strong></div>
+                <div class="list-row"><span>1998-10-22 (역대 상위권 포근함)</span><strong>12.6℃ ~ 22.4℃</strong></div>
+              </div>
+              <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                <span>다른 기념일·생일 날씨 조회 안내</span><span>›</span>
+              </button>
+            </article>`,
+            `<article class="weather-card">
+              <div class="source-row"><span class="tag-pill stats">날씨 배틀</span><span>/api/stats/date-battle</span></div>
+              <h3 style="margin:10px 0 4px;font-size:15px">2025-10-22 vs 2024-10-22 대결!</h3>
+              <div class="list-rows">
+                <div class="list-row" style="border:1px solid var(--inal-accent);background:var(--inal-accent-soft)">
+                  <span>🏆 2025-10-22 (무강수 · 최고 21.4℃)</span><strong>89점 WIN</strong>
+                </div>
+                <div class="list-row"><span>2024-10-22 (비 3.2mm · 최고 18.9℃)</span><strong>74점</strong></div>
+              </div>
+              <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                <span>배틀 점수 산출 기준 보기</span><span>›</span>
+              </button>
+            </article>`,
+            `<article class="weather-card">
+              <div class="source-row"><span class="tag-pill stats">기상 기록</span><span>/api/rt/records</span></div>
+              <h3 style="margin:10px 0 4px;font-size:15px">${st.name} 10월 역대 극값 기록</h3>
+              <div class="list-rows">
+                <div class="list-row"><span>10월 하순 최고기온 (1998-10-11)</span><strong>25.8℃</strong></div>
+                <div class="list-row"><span>10월 하순 최저기온 (2002-10-28)</span><strong>1.8℃</strong></div>
+                <div class="list-row"><span>10월 일강수량 최다 (2006-10-23)</span><strong>68.5mm</strong></div>
+              </div>
+              <button type="button" class="detail-btn" onclick="openDetailSheet('story')">
+                <span>극값 집계 원칙 보기</span><span>›</span>
+              </button>
+            </article>`
+          ]
+        };
+      }
+
+      function render() {
+        const st = getStation();
+        document.getElementById('current-station-label').textContent = st.name;
+        document.getElementById('current-basis-label').textContent = state.basis;
+
+        const { labels, slides } = getSlidesForTab(state.tab, st);
+        if (state.slideIndex >= slides.length) state.slideIndex = 0;
+
+        const main = document.getElementById('main-content');
+        main.innerHTML = `
+          <div class="chip-bar">
+            ${labels
+              .map(
+                (l, idx) =>
+                  `<button type="button" class="chip ${
+                    idx === state.slideIndex ? 'active' : ''
+                  }" onclick="goSlide(${idx})">${l}</button>`
+              )
+              .join('')}
+          </div>
+          <div class="carousel-viewport" id="carousel-vp">
+            <div class="carousel-track" style="transform:translate3d(-${state.slideIndex * 100}%,0,0)">
+              ${slides.map((s) => `<div class="carousel-slide">${s}</div>`).join('')}
+            </div>
+          </div>
+          <div class="pagination-row">
+            <button type="button" class="btn-touch" onclick="goSlide(${Math.max(0, state.slideIndex - 1)})" ${
+          state.slideIndex === 0 ? 'disabled style="opacity:0.35"' : ''
+        } aria-label="이전 카드">‹</button>
+            <div class="dots">
+              ${labels
+                .map(
+                  (_, idx) => `<span class="dot ${idx === state.slideIndex ? 'active' : ''}"></span>`
+                )
+                .join('')}
+            </div>
+            <button type="button" class="btn-touch" onclick="goSlide(${Math.min(
+              slides.length - 1,
+              state.slideIndex + 1
+            )})" ${
+          state.slideIndex === slides.length - 1 ? 'disabled style="opacity:0.35"' : ''
+        } aria-label="다음 카드">›</button>
+          </div>
+        `;
+      }
+
+      window.goSlide = function (idx) {
+        state.slideIndex = idx;
+        render();
+      };
+
+      window.openDetailSheet = function () {
+        const st = getStation();
+        const backdrop = document.getElementById('sheet-backdrop');
+        const panel = document.getElementById('sheet-panel');
+        panel.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--inal-border);padding-bottom:10px">
+            <strong>${st.name} 상세 데이터 및 계산 기준</strong>
+            <button type="button" class="btn-touch" onclick="closeSheet()">닫기 ✕</button>
+          </div>
+          <p style="font-size:12px;color:var(--inal-text-muted);line-height:1.5">
+            • 같은 월일 ±7일(15일 창), 같은 정시 ASOS 관측값을 해마다 먼저 평균한 뒤 동일 가중치로 평균합니다.<br/>
+            • 결측값은 절대 0이나 '맑음'으로 바꾸지 않고 '자료 없음'으로 분리 표기합니다.
+          </p>
+        `;
+        backdrop.classList.add('open');
+      };
+
+      window.closeSheet = function () {
+        document.getElementById('sheet-backdrop').classList.remove('open');
+      };
+
+      window.selectStn = function (id) {
+        state.stationId = id;
+        safeSetStorage('inal_preview_stn', id);
+        closeSheet();
+        render();
+      };
+
+      window.setBasis = function (b) {
+        state.basis = b;
+        safeSetStorage('inal_preview_basis', b);
+        closeSheet();
+        render();
+      };
+
+      document.querySelectorAll('.nav-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.tab = btn.getAttribute('data-tab');
+          state.slideIndex = 0;
+          render();
+        });
+      });
+
+      render();
+    </script>
+  </body>
+</html>
