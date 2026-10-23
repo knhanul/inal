@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Swords, CalendarHeart, HelpCircle } from 'lucide-react';
+import { Swords, CalendarHeart, HelpCircle, Plus, X } from 'lucide-react';
 import type { BottomSheetDetailPayload, StoryCardViewModel } from '../types/viewmodel';
 import { getStationById } from '../api/endpoints';
 import {
@@ -32,13 +32,45 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
   const [selectedQuestionIdx, setSelectedQuestionIdx] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(10);
   const [selectedDay, setSelectedDay] = useState(22);
-  const [battleDate1] = useState('2025-10-22');
-  const [battleDate2] = useState('2025-05-05');
+  const [battleCases, setBattleCases] = useState<Array<{ id: string; month: number; day: number }>>([
+    { id: 'A', month: 10, day: 22 },
+    { id: 'B', month: 5, day: 5 },
+  ]);
 
   const highlightsQuery = useStatsHighlightsQuery(stationId, true);
   const dateWeatherQuery = useStatsDateWeatherQuery(stationId, selectedMonth, selectedDay, true);
-  const battleQuery = useStatsDateBattleQuery(stationId, battleDate1, battleDate2, true);
+  const battleQuery = useStatsDateBattleQuery(stationId, battleCases, true);
   const recordsQuery = useRtRecordsQuery(stationId, true);
+
+  const battleCaseLabel = (c: { month: number; day: number }) => `${c.month}월 ${c.day}일`;
+  const daysInMonth = (month: number) => [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] || 31;
+  const updateBattleCase = (id: string, patch: { month?: number; day?: number }) => {
+    setBattleCases((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        const month = patch.month ?? c.month;
+        const maxDay = daysInMonth(month);
+        const day = Math.min(patch.day ?? c.day, maxDay);
+        return { ...c, month, day };
+      }),
+    );
+  };
+  const addBattleCase = () => {
+    setBattleCases((prev) => {
+      if (prev.length >= 4) return prev;
+      const ids = ['A', 'B', 'C', 'D'];
+      const last = prev[prev.length - 1];
+      const nextMonth = last.month === 12 ? 1 : last.month + 1;
+      return [...prev, { id: ids[prev.length], month: nextMonth, day: 1 }];
+    });
+  };
+  const removeBattleCase = (id: string) => {
+    setBattleCases((prev) => {
+      if (prev.length <= 2) return prev;
+      const ids = ['A', 'B', 'C', 'D'];
+      return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: ids[i] }));
+    });
+  };
 
   const renderQuestionsCard = () => {
     if (highlightsQuery.isLoading) return <LoadingSkeleton label="관측 통계로 답하는 질문 카드를 불러오는 중입니다…" />;
@@ -209,8 +241,114 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
   };
 
   const renderWeatherBattleCard = () => {
-    if (battleQuery.isLoading) return <LoadingSkeleton label="두 날짜의 날씨 대결 결과를 계산하는 중입니다…" />;
-    if (battleQuery.isError || !battleQuery.data) return <ErrorState title="날씨 배틀 결과를 불러오지 못했어요" onRetry={() => battleQuery.refetch()} />;
+    const titleFromCases =
+      battleCases.length === 2
+        ? `${battleCaseLabel(battleCases[0])} vs ${battleCaseLabel(battleCases[1])} 최근 10년 대결`
+        : `${battleCases.map(battleCaseLabel).join(' · ')} 최근 10년 대결`;
+
+    const dateControls = (
+      <div data-no-carousel-swipe="true" className="rounded-2xl border border-inal-border bg-inal-surfaceSubtle/60 p-3 space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-inal-text">
+            <Swords className="h-3.5 w-3.5 text-inal-accent" />
+            <span>비교할 날짜 고르기 (2~4개)</span>
+          </span>
+          {battleCases.length < 4 && (
+            <button
+              type="button"
+              onClick={addBattleCase}
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-inal-border bg-white px-2.5 text-[11px] font-bold text-inal-text"
+              aria-label={`날짜 추가 (${battleCases.length}/4)`}
+            >
+              <Plus className="h-3.5 w-3.5 text-inal-accent" />
+              날짜 추가 ({battleCases.length}/4)
+            </button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {battleCases.map((c) => (
+            <div key={c.id} className="flex items-center gap-1.5 rounded-xl bg-white px-2.5 py-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-inal-accentSoft text-[11px] font-extrabold text-inal-accent">
+                {c.id}
+              </span>
+              <select
+                aria-label={`${c.id} 월 선택`}
+                value={c.month}
+                onChange={(e) => updateBattleCase(c.id, { month: Number(e.target.value) })}
+                className="h-9 min-w-0 flex-1 rounded-lg border border-inal-border bg-white px-2 text-xs font-bold text-inal-text"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>{m}월</option>
+                ))}
+              </select>
+              <select
+                aria-label={`${c.id} 일 선택`}
+                value={c.day}
+                onChange={(e) => updateBattleCase(c.id, { day: Number(e.target.value) })}
+                className="h-9 min-w-0 flex-1 rounded-lg border border-inal-border bg-white px-2 text-xs font-bold text-inal-text"
+              >
+                {Array.from({ length: daysInMonth(c.month) }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>{d}일</option>
+                ))}
+              </select>
+              {battleCases.length > 2 ? (
+                <button
+                  type="button"
+                  onClick={() => removeBattleCase(c.id)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-inal-border text-inal-textMuted"
+                  aria-label={`${c.id} 날짜 빼기`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <span className="w-9 shrink-0" aria-hidden="true" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    if (battleQuery.isLoading) {
+      return (
+        <ComparisonCard
+          badgeText="날씨 배틀"
+          title={titleFromCases}
+          summary="두 날짜 이상의 날씨 대결 결과를 계산하는 중입니다…"
+          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
+        >
+          {dateControls}
+          <div role="status" className="mt-2.5 animate-pulse space-y-2 rounded-2xl border border-inal-border bg-inal-surfaceSubtle/50 p-3">
+            <div className="h-16 rounded-xl bg-inal-surfaceSubtle" />
+            <div className="h-16 rounded-xl bg-inal-surfaceSubtle" />
+            <p className="text-center text-[11px] font-medium text-inal-textSoft">대결 결과를 불러오는 중입니다…</p>
+          </div>
+        </ComparisonCard>
+      );
+    }
+
+    if (battleQuery.isError || !battleQuery.data) {
+      return (
+        <ComparisonCard
+          badgeText="날씨 배틀"
+          title={titleFromCases}
+          summary="날씨 배틀 결과를 불러오지 못했어요. 날짜를 바꾼 뒤 다시 시도해 보세요."
+          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
+        >
+          {dateControls}
+          <div role="alert" className="mt-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-3 text-center">
+            <p className="text-xs font-bold text-inal-text">결과를 불러오지 못했어요</p>
+            <button
+              type="button"
+              onClick={() => battleQuery.refetch()}
+              className="mt-2 inline-flex h-9 items-center rounded-lg bg-inal-text px-3 text-[11px] font-semibold text-white"
+            >
+              다시 시도
+            </button>
+          </div>
+        </ComparisonCard>
+      );
+    }
 
     const raw = battleQuery.data.data;
     const rawAny = raw as unknown as {
@@ -233,7 +371,8 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
           summary={win.reason}
           provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: `${c1.date} vs ${c2.date}` }}
         >
-          <div className="grid grid-cols-2 gap-2.5">
+          {dateControls}
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
             {[c1, c2].map((c) => {
               const isWinner = win.date === c.date;
               return (
@@ -258,43 +397,52 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
       );
     }
 
-    const caseA = rawAny.cases?.find((c) => c.id === 'A') || { id: 'A', specLabel: battleDate1 };
-    const caseB = rawAny.cases?.find((c) => c.id === 'B') || { id: 'B', specLabel: battleDate2 };
+    const apiCases = rawAny.cases || [];
     const tallies = rawAny.tallies || [];
     const avgTally = tallies.find((t) => t.id === 'avg') || tallies[0];
-    const kA = avgTally?.results?.find((r) => r.case === 'A')?.k ?? 0;
-    const kB = avgTally?.results?.find((r) => r.case === 'B')?.k ?? 0;
     const latestYearRow = rawAny.yearly?.[rawAny.yearly.length - 1];
-    const cellA = latestYearRow?.cells?.find((c) => c.case === 'A')?.values;
-    const cellB = latestYearRow?.cells?.find((c) => c.case === 'B')?.values;
+    const displayCases = battleCases.map((bc) => {
+      const api = apiCases.find((c) => c.id === bc.id);
+      const wins = avgTally?.results?.find((r) => r.case === bc.id)?.k ?? 0;
+      const vals = latestYearRow?.cells?.find((c) => c.case === bc.id)?.values;
+      return {
+        id: bc.id,
+        label: api?.specLabel || battleCaseLabel(bc),
+        wins,
+        vals,
+      };
+    });
+    const maxWins = Math.max(0, ...displayCases.map((c) => c.wins));
+    const summaryParts = displayCases.map((c) => `${c.label} ${c.wins}회`).join(' vs ');
 
     return (
       <ComparisonCard
         badgeText="날씨 배틀"
-        title={`${caseA.specLabel || battleDate1} vs ${caseB.specLabel || battleDate2} 최근 10년 대결`}
-        summary={`최근 10년 동안 ${avgTally?.word || '더 따뜻했던 해'}는 ${caseA.specLabel} ${kA}회 vs ${caseB.specLabel} ${kB}회입니다.`}
+        title={titleFromCases}
+        summary={`최근 10년 동안 ${avgTally?.word || '더 따뜻했던 해'}는 ${summaryParts}입니다.`}
         provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
       >
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { id: 'A', label: caseA.specLabel || battleDate1, wins: kA, isWinner: kA >= kB, vals: cellA },
-            { id: 'B', label: caseB.specLabel || battleDate2, wins: kB, isWinner: kB > kA, vals: cellB },
-          ].map((c) => (
-            <div key={c.id} className={`rounded-2xl border p-3 ${c.isWinner ? 'border-inal-accent bg-inal-accentSoft/65' : 'border-inal-border bg-inal-surfaceSubtle/60'}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold tabular-nums text-inal-text">{c.label}</span>
-                {c.isWinner && <span className="rounded bg-inal-accent px-1.5 py-0.5 text-[10px] font-bold text-white">우세</span>}
+        {dateControls}
+        <div className={`mt-2.5 grid gap-2.5 ${displayCases.length > 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
+          {displayCases.map((c) => {
+            const isWinner = c.wins === maxWins && maxWins > 0;
+            return (
+              <div key={c.id} className={`rounded-2xl border p-3 ${isWinner ? 'border-inal-accent bg-inal-accentSoft/65' : 'border-inal-border bg-inal-surfaceSubtle/60'}`}>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-xs font-extrabold tabular-nums text-inal-text">{c.label}</span>
+                  {isWinner && <span className="shrink-0 rounded bg-inal-accent px-1.5 py-0.5 text-[10px] font-bold text-white">우세</span>}
+                </div>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <Swords className="h-3.5 w-3.5 text-inal-accent" />
+                  <span className="text-xl font-extrabold tabular-nums text-inal-text">{c.wins}승</span>
+                </div>
+                <div className="mt-2 space-y-0.5 text-[11px] tabular-nums text-inal-textMuted">
+                  <p>최근해 최고 {formatTemp(c.vals?.max)} / 최저 {formatTemp(c.vals?.min)}</p>
+                  <p>일강수 {formatRainfall(c.vals?.rain)} · 바람 {formatWindSpeed(c.vals?.wind)}</p>
+                </div>
               </div>
-              <div className="mt-2 flex items-baseline gap-1">
-                <Swords className="h-3.5 w-3.5 text-inal-accent" />
-                <span className="text-xl font-extrabold tabular-nums text-inal-text">{c.wins}승</span>
-              </div>
-              <div className="mt-2 space-y-0.5 text-[11px] tabular-nums text-inal-textMuted">
-                <p>최근해 최고 {formatTemp(c.vals?.max)} / 최저 {formatTemp(c.vals?.min)}</p>
-                <p>일강수 {formatRainfall(c.vals?.rain)} · 바람 {formatWindSpeed(c.vals?.wind)}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </ComparisonCard>
     );

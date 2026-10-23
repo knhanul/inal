@@ -51,7 +51,7 @@ export const weatherQueryKeys = {
   yearly: (station: string, metric: string) => ['weather', 'stats', 'yearly', station, metric] as const,
   regionStats: (stations: string) => ['weather', 'stats', 'region', stations] as const,
   dateWeather: (station: string, month: number, day: number) => ['weather', 'stats', 'date-weather', station, month, day] as const,
-  dateBattle: (station: string, date1: string, date2: string) => ['weather', 'stats', 'date-battle', station, date1, date2] as const,
+  dateBattle: (station: string, casesKey: string) => ['weather', 'stats', 'date-battle', station, casesKey] as const,
   highlights: (station: string) => ['weather', 'stats', 'highlights', station] as const,
 };
 
@@ -181,11 +181,22 @@ export function useStatsDateWeatherQuery(station: string, month: number, day: nu
   });
 }
 
-export function useStatsDateBattleQuery(station: string, date1: string, date2: string, enabled = true) {
+export function useStatsDateBattleQuery(
+  station: string,
+  battleCases: Array<{ month: number; day: number }>,
+  enabled = true,
+) {
+  const casesKey = battleCases.map((c) => `${c.month}-${c.day}`).join(',');
+  const date1 = battleCases[0] ? `2000-${String(battleCases[0].month).padStart(2, '0')}-${String(battleCases[0].day).padStart(2, '0')}` : '2000-10-22';
+  const date2 = battleCases[1] ? `2000-${String(battleCases[1].month).padStart(2, '0')}-${String(battleCases[1].day).padStart(2, '0')}` : '2000-05-05';
   return useQuery({
-    queryKey: weatherQueryKeys.dateBattle(station, date1, date2),
-    queryFn: () => fetchWeatherApi<ApiStatsDateBattleResponse>(WEATHER_ENDPOINTS.dateBattle(station, date1, date2), () => getDevFallbackDateBattle(station, date1, date2)),
-    enabled,
+    queryKey: weatherQueryKeys.dateBattle(station, casesKey),
+    queryFn: () =>
+      fetchWeatherApi<ApiStatsDateBattleResponse>(
+        WEATHER_ENDPOINTS.dateBattle(station, battleCases),
+        () => getDevFallbackDateBattle(station, date1, date2),
+      ),
+    enabled: enabled && battleCases.length >= 2,
     staleTime: 10 * 60 * 1000,
   });
 }
