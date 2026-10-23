@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import type { BottomSheetDetailPayload, MetricDisplayItem } from '../../types/viewmodel';
 import type { DataProvenance } from '../../types/domain';
 import { DataSourceLabel } from '../common/DataSourceLabel';
+import { InfoTipAuto } from '../common/InfoTip';
 import { WeatherMetric } from '../common/WeatherMetric';
 
 interface ComparisonRowItem {
@@ -48,7 +49,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
           </span>
         </div>
         <h3 className="mt-2.5 text-base font-bold leading-snug text-inal-text">{title}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-inal-textMuted">{summary}</p>
+        <InfoTipAuto text={summary} max={44} label="비교 기준" className="mt-1" />
       </div>
 
       {metrics && metrics.length > 0 && (
@@ -106,7 +107,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
           onClick={() => onOpenDetail(detail)}
           className="touch-target mt-3.5 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
         >
-          <span>그래프 · 비교 기준 상세보기</span>
+          <span>자세히 보기</span>
           <ChevronRight className="h-4 w-4 text-inal-textMuted" />
         </button>
       )}

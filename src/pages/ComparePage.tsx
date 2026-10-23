@@ -99,8 +99,8 @@ export const ComparePage: React.FC<ComparePageProps> = ({
       <ComparisonCard
         badgeText="한눈에 보기"
         title={`지금 전국은 · ${maxTaName} 가장 따뜻 · ${minTaName} 가장 선선`}
-        summary="전국 8개 공식 관측지점의 현재 기온과 평소 대비 기온 편차입니다. 지점을 누르면 해당 지역으로 전환됩니다."
-        provenance={{ kind: 'obs', sourceName: '기상청 초단기실황 · ASOS 8대 지점 비교', referenceTime: refTime }}
+        summary="8개 지점 기온 · 평소 대비 편차 · 누르면 지역 전환"
+        provenance={{ kind: 'obs', sourceName: '기상청 초단기실황 · ASOS 8대 지점', referenceTime: refTime, note: '같은 실황 시각 기준. 지점을 누르면 해당 지역으로 전환됩니다.' }}
         rows={rows.slice(0, 5).map((r) => ({
           id: String(r.id),
           title: `${r.name} (${r.id})`,
@@ -178,7 +178,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
       <ComparisonCard
         badgeText="연도별 비교"
         title={`${station.name} 1990년 이후 연도별 같은 시기 기온 변화`}
-        summary="해마다 같은 시기의 평균기온이 어떻게 달라졌는지 연도별 관측값으로 비교합니다."
+        summary="같은 시기 연도별 평균기온 추이"
         provenance={{ kind: 'stats', sourceName: raw.source || '기상청 ASOS 공식 일자료', referenceTime: '1990~2025' }}
         rows={recentRows.map((r) => ({
           id: String(r.year),
@@ -258,7 +258,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
       <ComparisonCard
         badgeText="지역별 비교"
         title="서울 · 부산 · 제주 — 1990년대 대비 최근 10년 기후 비교"
-        summary="주요 권역 관측지점별로 1990~1999년 평균과 최근 완료된 10년(2016~2025) 평균을 비교합니다."
+        summary="1990년대 vs 최근 10년(2016~2025) 평균"
         provenance={{ kind: 'stats', sourceName: raw.source || 'ASOS 공식 일자료', referenceTime: '1990~2025' }}
         rows={mappedRows}
         onOpenDetail={onOpenDetail}
@@ -277,8 +277,8 @@ export const ComparePage: React.FC<ComparePageProps> = ({
       <ComparisonCard
         badgeText="생활 속 날씨"
         title={`${station.name} 오늘·내일 생활 속 날씨와 활동 지수`}
-        summary="실황과 단기예보를 결합해 출퇴근·산책·외출 시간대별 체감과 과거 평균 차이를 안내합니다."
-        provenance={{ kind: 'mix', sourceName: '초단기실황 + 단기예보 생활 규칙', referenceTime: raw.now || '최신 발표' }}
+        summary="출퇴근·산책·외출 시간대 체감"
+        provenance={{ kind: 'mix', sourceName: '초단기실황 + 단기예보', referenceTime: raw.now || '최신 발표', note: '실황과 단기예보를 결합한 생활 규칙입니다. 공식 체감온도 지수가 아닙니다.' }}
         rows={items.map((item) => {
           const itemAny = item as unknown as {
             q?: string;
@@ -389,8 +389,8 @@ export const ComparePage: React.FC<ComparePageProps> = ({
     return (
       <RecordCard
         title={`${station.name} 날씨 기록 · 계절 신호 · 30일 비 달력`}
-        subtitle="1990년 이후 극값 기록과 첫 30℃·첫 영하 등 계절 신호, 최근 30일 강수 현황입니다."
-        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료 (1990~2025)', referenceTime: '어제까지 집계' }}
+        subtitle="역대 극값 · 계절 신호 · 최근 30일 강수"
+        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료 (1990~2025)', referenceTime: '어제까지 집계', note: '극값·계절 신호·30일 비 달력은 ASOS 공식 일자료 기준입니다.' }}
         records={recordItems}
         rainCalendarSummary={
           cal

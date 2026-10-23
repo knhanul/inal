@@ -3,6 +3,7 @@ import { Award, Calendar, ChevronRight } from 'lucide-react';
 import type { BottomSheetDetailPayload } from '../../types/viewmodel';
 import type { DataProvenance } from '../../types/domain';
 import { DataSourceLabel } from '../common/DataSourceLabel';
+import { InfoTip, InfoTipAuto } from '../common/InfoTip';
 
 export interface RecordItemDisplay {
   id: string;
@@ -42,7 +43,7 @@ export const RecordCard: React.FC<RecordCardProps> = ({
       <div>
         <DataSourceLabel provenance={provenance} compact />
         <h3 className="mt-2 text-base font-bold leading-snug text-inal-text">{title}</h3>
-        <p className="mt-0.5 text-xs leading-relaxed text-inal-textMuted">{subtitle}</p>
+        <InfoTipAuto text={subtitle} max={44} label="기록 기준" className="mt-0.5" />
       </div>
 
       <div className="my-3.5 space-y-2">
@@ -68,13 +69,17 @@ export const RecordCard: React.FC<RecordCardProps> = ({
 
       {rainCalendarSummary && (
         <div className="rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-inal-text">
+          <div className="flex items-center gap-0.5 text-xs font-bold text-inal-text">
             <Calendar className="h-3.5 w-3.5 text-sky-700" />
-            <span>최근 30일 비 달력 (ASOS 공식 일자료)</span>
+            <span>최근 30일 비 달력</span>
+            <InfoTip label="자료 출처" detail="기상청 ASOS 공식 일자료 기준입니다. 비 온 날은 일강수량 0.1mm 이상입니다." />
           </div>
           <p className="mt-1 text-xs text-inal-textMuted">
             비 온 날 <strong className="text-sky-800">{rainCalendarSummary.rainyDays}일</strong> · 합계{' '}
             <strong className="text-sky-800">{rainCalendarSummary.totalMmText}</strong> · {rainCalendarSummary.lastRainText}
+            {rainCalendarSummary.missingDays > 0 ? (
+              <> · <strong className="text-amber-800">{rainCalendarSummary.missingDays}일 결측</strong></>
+            ) : null}
           </p>
         </div>
       )}
@@ -85,7 +90,7 @@ export const RecordCard: React.FC<RecordCardProps> = ({
           onClick={() => onOpenDetail(detail)}
           className="touch-target mt-3.5 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
         >
-          <span>계절 신호 · 역대 극값 상세보기</span>
+          <span>자세히 보기</span>
           <ChevronRight className="h-4 w-4 text-inal-textMuted" />
         </button>
       )}

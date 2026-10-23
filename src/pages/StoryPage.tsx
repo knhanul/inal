@@ -180,7 +180,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
     const typicalSummary =
       raw.weather?.typicalSummary ||
       rawAny.stories?.map((s) => s.text).filter(Boolean).join(' ') ||
-      `최근 10년 ${selectedMonth}월 ${selectedDay}일의 ASOS 일자료 요약입니다.`;
+      `최근 10년 ${selectedMonth}월 ${selectedDay}일 요약`;
 
     const hist =
       raw.historical && raw.historical.length > 0
@@ -201,7 +201,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
         badgeText="내가 기억하는 이날"
         title={`${selectedMonth}월 ${selectedDay}일 ${station.name}에는 어떤 날씨가 많았을까?`}
         summary={typicalSummary}
-        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료 (/api/stats/date-weather)', referenceTime: `매년 ${selectedMonth}월 ${selectedDay}일` }}
+        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료', referenceTime: `매년 ${selectedMonth}월 ${selectedDay}일`, note: '해마다 같은 월일의 관측값을 모아 요약합니다.' }}
         metrics={[
           { label: '이날 평균기온', valueText: formatTemp(taAvg), isMissing: taAvg === null, highlight: 'warm' },
           { label: '이날 최저평균', valueText: formatTemp(taMin), isMissing: taMin === null, highlight: 'cool' },
@@ -315,7 +315,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
           badgeText="날씨 배틀"
           title={titleFromCases}
           summary="두 날짜 이상의 날씨 대결 결과를 계산하는 중입니다…"
-          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
+          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료', referenceTime: '2016~2025 (10년)', note: '해마다 같은 날짜를 나란히 비교합니다. 공통으로 자료가 있는 해만 씁니다.' }}
         >
           {dateControls}
           <div role="status" className="mt-2.5 animate-pulse space-y-2 rounded-2xl border border-inal-border bg-inal-surfaceSubtle/50 p-3">
@@ -333,7 +333,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
           badgeText="날씨 배틀"
           title={titleFromCases}
           summary="날씨 배틀 결과를 불러오지 못했어요. 날짜를 바꾼 뒤 다시 시도해 보세요."
-          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
+          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료', referenceTime: '2016~2025 (10년)', note: '해마다 같은 날짜를 나란히 비교합니다. 공통으로 자료가 있는 해만 씁니다.' }}
         >
           {dateControls}
           <div role="alert" className="mt-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/60 p-3 text-center">
@@ -369,7 +369,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
           badgeText="날씨 배틀"
           title="어느 날의 날씨가 더 쾌적했을까? 날짜 대결!"
           summary={win.reason}
-          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: `${c1.date} vs ${c2.date}` }}
+          provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료', referenceTime: `${c1.date} vs ${c2.date}` }}
         >
           {dateControls}
           <div className="mt-2.5 grid grid-cols-2 gap-2.5">
@@ -420,7 +420,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
         badgeText="날씨 배틀"
         title={titleFromCases}
         summary={`최근 10년 동안 ${avgTally?.word || '더 따뜻했던 해'}는 ${summaryParts}입니다.`}
-        provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료 (/api/stats/date-battle)', referenceTime: '2016~2025 (10년)' }}
+        provenance={{ kind: 'stats', sourceName: 'ASOS 공식 일자료', referenceTime: '2016~2025 (10년)', note: '해마다 같은 날짜를 나란히 비교합니다. 공통으로 자료가 있는 해만 씁니다.' }}
       >
         {dateControls}
         <div className={`mt-2.5 grid gap-2.5 ${displayCases.length > 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
@@ -495,8 +495,8 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
       <ComparisonCard
         badgeText="흥미로운 기상 기록"
         title={`${station.name}의 이 시기, 가장 기억에 남는 극값 기록`}
-        summary="1990년부터 쌓인 ASOS 관측 자료에서 이 시기에 기록된 역대 최고·최저 기온 기록입니다."
-        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료 (1990~2025)', referenceTime: '36개 연도 관측 극값' }}
+        summary="이 시기 역대 최고·최저 기온"
+        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 공식 일자료 (1990~2025)', referenceTime: '1990~ 관측 극값' }}
         rows={rows.slice(0, 4)}
         onOpenDetail={onOpenDetail}
       />

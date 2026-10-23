@@ -10,6 +10,7 @@ import type { ApiRtTodayOutfitSegment } from '../../types/api';
 import { ForecastTimeline } from './ForecastTimeline';
 import { WeatherIcon } from '../common/WeatherIcon';
 import { DataSourceLabel } from '../common/DataSourceLabel';
+import { InfoTip, InfoTipAuto } from '../common/InfoTip';
 import { formatTemp, isValidNumber } from '../../api/mappers';
 
 interface ForecastCardProps {
@@ -38,7 +39,7 @@ export const ForecastCard: React.FC<ForecastCardProps> = ({
       <div>
         <DataSourceLabel provenance={provenance} compact />
         <h3 className="mt-2 text-base font-bold leading-snug text-inal-text">{title}</h3>
-        <p className="mt-0.5 text-xs leading-relaxed text-inal-textMuted">{subtitle}</p>
+        <InfoTipAuto text={subtitle} max={44} label="안내" className="mt-0.5" />
       </div>
 
       {hourlySlots && hourlySlots.length > 0 && (
@@ -49,7 +50,13 @@ export const ForecastCard: React.FC<ForecastCardProps> = ({
 
       {outfitSegments && outfitSegments.length > 0 && (
         <div className="mt-2 space-y-1.5">
-          <span className="text-[11px] font-bold text-inal-textMuted">시간대별 옷차림 · 강수 참고 가이드</span>
+          <div className="flex items-center gap-0.5 text-[11px] font-bold text-inal-textMuted">
+            <span>옷차림 가이드</span>
+            <InfoTip
+              label="옷차림 기준"
+              detail="구간에서 가장 추운 시각 기온으로 겉옷을, 가장 따뜻한 시각 기온으로 안에 입을 옷을 고른 참고용 가이드입니다. 강수·바람 안내는 예보값 기준입니다."
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {outfitSegments.slice(0, 4).map((seg) => (
               <div key={seg.id} className="rounded-xl border border-inal-border/70 bg-inal-surfaceSubtle/60 p-2.5">
@@ -112,7 +119,7 @@ export const ForecastCard: React.FC<ForecastCardProps> = ({
           onClick={() => onOpenDetail(detail)}
           className="touch-target mt-3 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
         >
-          <span>상세 시계열 · 발표 시각 · 기준 확인</span>
+          <span>자세히 보기</span>
           <ChevronRight className="h-4 w-4 text-inal-textMuted" />
         </button>
       )}

@@ -377,7 +377,20 @@ export function mapApiStoriesToViewModels(
     const title = st.title || '오늘의 날씨 이야기';
     const summary = st.content || (typeof stAny.text === 'string' ? stAny.text : '');
     const badgeText = st.category || (typeof stAny.phenomenon === 'string' ? stAny.phenomenon : badgeMap[kind]);
-    const evidence = st.evidence || (typeof stAny.basis === 'string' ? stAny.basis : '기상청 관측·예보 및 ASOS 통계');
+    const evidenceRaw = st.evidence;
+    let evidence = '기상청 관측·예보 및 ASOS 통계';
+    if (typeof evidenceRaw === 'string' && evidenceRaw.trim()) {
+      evidence = evidenceRaw.trim();
+    } else if (evidenceRaw && typeof evidenceRaw === 'object') {
+      const ev = evidenceRaw as { sourceRefs?: unknown; status?: unknown };
+      if (Array.isArray(ev.sourceRefs) && ev.sourceRefs.length) {
+        evidence = ev.sourceRefs.map(String).filter(Boolean).join(' · ');
+      } else if (typeof stAny.basis === 'string' && stAny.basis) {
+        evidence = stAny.basis;
+      }
+    } else if (typeof stAny.basis === 'string' && stAny.basis) {
+      evidence = stAny.basis;
+    }
     const highlightValue = typeof stAny.value === 'string' ? stAny.value : undefined;
 
     return {

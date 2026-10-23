@@ -78,7 +78,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="card-12h"
         title={`${station.name} 앞으로 12시간 예보`}
-        subtitle="외출 전 꼭 확인해야 할 시간대별 기온·강수확률·풍속 흐름입니다."
+        subtitle="시간대별 기온·강수확률·풍속"
         provenance={{ kind: 'fcst', sourceName: '초단기·단기예보', referenceTime: ultraBase || vilageBase || '' }}
         hourlySlots={slots12h}
         detail={detail12h}
@@ -87,7 +87,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="card-72h"
         title="72시간(3일) 단기예보 흐름"
-        subtitle="모레까지의 시간별 기온 변화와 비·눈 예보 구간을 카드로 넘겨 확인하세요."
+        subtitle="모레까지 시간별 기온·강수 예보"
         provenance={{ kind: 'fcst', sourceName: '기상청 단기예보', referenceTime: vilageBase || '하루 8회 발표' }}
         hourlySlots={slots72h}
         detail={detail12h}
@@ -97,8 +97,8 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="card-wind"
         badgeText="바람 예보"
         title={`${station.name} 시간별 바람(풍향·풍속) 예보`}
-        summary="시간대별 풍향(16방위)과 풍속(m/s) 예보입니다. 5m/s 이상은 강풍 주의 구간입니다."
-        provenance={{ kind: 'fcst', sourceName: '기상청 바람 예보 (/api/rt/forecast-wind)', referenceTime: windHours[0]?.base || '' }}
+        summary="풍향·풍속 예보 · 5m/s 이상 강풍 주의"
+        provenance={{ kind: 'fcst', sourceName: '기상청 바람 예보', referenceTime: windHours[0]?.base || '', note: '풍속 5m/s 이상은 강풍 주의 구간으로 표시합니다.' }}
         rows={windHours.slice(0, 5).map((w, idx) => {
           const dir = degreeToKoreanWindDir(w.vec) || MISSING_TEXT;
           const hh = w.time ? `${Number(w.time.slice(11, 13))}시` : `+${idx + 1}시간`;
@@ -154,7 +154,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="daily-1-5"
         title={`${station.name} 이번 주 일별 예보 (1~${firstHalf.length}일)`}
-        subtitle="날짜별 최저·최고기온, 강수확률 및 평년 기온과의 차이를 확인하세요."
+        subtitle="일별 최저·최고 · 강수확률 · 평년 대비"
         provenance={{ kind: 'fcst', sourceName: '단기·중기예보 결합', referenceTime: vilageBase || '최신 발표' }}
         dailyItems={firstHalf}
         detail={detail10d}
@@ -163,7 +163,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="daily-6-10"
         title={`${station.name} 중기 일별 예보 (${firstHalf.length + 1}~${dailyItems.length}일)`}
-        subtitle="기상청 중기예보가 제공하는 다음 주 기온 흐름과 강수 전망입니다."
+        subtitle="다음 주 기온·강수 전망"
         provenance={{ kind: 'fcst', sourceName: '기상청 중기예보', referenceTime: midBase || '하루 2회 발표' }}
         dailyItems={secondHalf}
         detail={detail10d}
@@ -173,8 +173,8 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
         key="daily-normal-cmp"
         badgeText="예보 vs 예년 평균"
         title="오늘·내일 예보 기온은 예년 이맘때와 얼마나 다를까요?"
-        summary="예보된 최고·최저기온을 1990~2025년 ASOS 공식 일자료 평균과 비교합니다."
-        provenance={{ kind: 'mix', sourceName: '단기예보 + ASOS 일자료 평균', referenceTime: dayMax?.base || '' }}
+        summary="예보 기온 vs 1990~2025 평균"
+        provenance={{ kind: 'mix', sourceName: '단기예보 + ASOS 일자료 평균', referenceTime: dayMax?.base || '', note: '예보 최고·최저를 1990~2025년 ASOS 공식 일자료 평균과 비교합니다.' }}
         rows={[
           {
             id: 'cmp-max-all',

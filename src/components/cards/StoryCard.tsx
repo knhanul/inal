@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import type { StoryCardViewModel, BottomSheetDetailPayload } from '../../types/viewmodel';
 import { DataSourceLabel } from '../common/DataSourceLabel';
+import { InfoTipAuto } from '../common/InfoTip';
 
 interface StoryCardProps {
   story: StoryCardViewModel;
@@ -37,7 +38,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({
           </div>
         )}
 
-        <p className="mt-2 text-xs leading-relaxed text-inal-textMuted">{story.summary}</p>
+        <InfoTipAuto text={story.summary} max={52} label="이야기 근거" className="mt-2" />
 
         {story.tags.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -59,7 +60,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({
           onClick={() => onOpenDetail(story.detail)}
           className="touch-target flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
         >
-          <span>어떻게 계산했나요 · 통계 근거 보기</span>
+          <span>자세히 보기</span>
           <ChevronRight className="h-4 w-4 text-inal-textMuted" />
         </button>
       </div>

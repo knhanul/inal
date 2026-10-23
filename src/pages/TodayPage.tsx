@@ -168,8 +168,8 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
       <ComparisonCard
         badgeText="3대 기준 평균 비교"
         title="지금 날씨는 과거 3개 기준과 얼마나 다를까요?"
-        summary={`지금 ${formatTemp(domain.temperature)}를 1990년 이후·최근 10년·최근 5년 같은 시기·시각 평균과 견주어 봅니다.`}
-        provenance={{ kind: 'stats', sourceName: '초단기실황 vs ASOS 정시 관측', referenceTime: domain.observedAt }}
+        summary={`지금 ${formatTemp(domain.temperature)} · 세 기준 기간 평균과 비교`}
+        provenance={{ kind: 'stats', sourceName: '초단기실황 vs ASOS 정시 관측', referenceTime: domain.observedAt, note: '같은 월일 ±7일·같은 정시 평균. 결측은 0으로 넣지 않습니다.' }}
         rows={[
           { id: 'basis-all', title: '1990년 이후 평균 (1990~2025)', subtitle: `보통 범위 ${formatTemp(dAll.p10)} ~ ${formatTemp(dAll.p90)}`, primaryText: `평균 ${formatTemp(dAll.mean)}`, secondaryText: `지금 ${formatTemp(dAll.diff, true)}`, badgeText: basis === 'all' ? '선택 기준' : undefined },
           { id: 'basis-r10', title: '최근 10년 평균 (2016~2025)', subtitle: `보통 범위 ${formatTemp(d10.p10)} ~ ${formatTemp(d10.p90)}`, primaryText: `평균 ${formatTemp(d10.mean)}`, secondaryText: `지금 ${formatTemp(d10.diff, true)}`, badgeText: basis === 'r10' ? '선택 기준' : undefined },
@@ -240,8 +240,8 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
       <ComparisonCard
         badgeText="닮은 날 찾기"
         title="오늘과 기온 흐름이 가장 비슷했던 과거의 날"
-        summary="1990년 이후 관측 기록 중에서 오늘의 시간별 기온·습도 변화와 가장 닮은 날들입니다."
-        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 시간자료 (1990~2025)', referenceTime: `상위 ${matches.length}일 매칭` }}
+        summary="오늘과 시간별 기온·습도 흐름이 닮은 과거 날"
+        provenance={{ kind: 'stats', sourceName: '기상청 ASOS 시간자료 (1990~2025)', referenceTime: `상위 ${matches.length}일`, note: '같은 계절 날짜들의 시간별 관측 곡선과 유사도를 비교합니다.' }}
         rows={matches.slice(0, 3).map((m, idx) => ({
           id: m.date,
           title: `${idx + 1}위 · ${m.date}`,

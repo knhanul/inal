@@ -4,6 +4,7 @@ import type { HeroCardViewModel, BottomSheetDetailPayload } from '../../types/vi
 import { WeatherIcon } from '../common/WeatherIcon';
 import { WeatherMetric } from '../common/WeatherMetric';
 import { DataSourceLabel } from '../common/DataSourceLabel';
+import { InfoTipAuto } from '../common/InfoTip';
 import { formatTemp, isValidNumber } from '../../api/mappers';
 
 interface WeatherHeroCardProps {
@@ -59,7 +60,7 @@ export const WeatherHeroCard: React.FC<WeatherHeroCardProps> = ({ vm, onOpenDeta
 
       <div className="rounded-2xl bg-inal-accentSoft/65 p-3.5">
         <p className="text-sm font-bold leading-snug text-inal-text">{vm.anomalyHeadline}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-inal-textMuted">{vm.anomalySubline}</p>
+        <InfoTipAuto text={vm.anomalySubline} max={40} label="비교 기준" className="mt-0.5" />
 
         {isValidNumber(dist.p10) && isValidNumber(dist.p90) && (
           <div className="mt-2.5">
@@ -89,7 +90,7 @@ export const WeatherHeroCard: React.FC<WeatherHeroCardProps> = ({ vm, onOpenDeta
         onClick={() => onOpenDetail(vm.detail)}
         className="touch-target mt-3.5 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle active:scale-[0.99]"
       >
-        <span>3대 기준 기간 분포 · 계산 근거 상세보기</span>
+        <span>자세히 보기</span>
         <ChevronRight className="h-4 w-4 text-inal-textMuted" />
       </button>
     </article>
