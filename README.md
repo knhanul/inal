@@ -31,3 +31,8 @@ npm run verify
 - `docs/FEATURE_STATUS.md`: 4대 화면(오늘·예보·비교·이야기) 구현 현황 및 후속 과제
 - `docs/DEPLOY.md`: `https://inal.nuni.co.kr` 독립 배포 및 Nginx 리버스 프록시 설정 가이드
 - `docs/WEATHER_BACKEND_PROPOSALS.md`: 기존 Weather 백엔드 개선 제안서
+
+## Android (Capacitor / Play)
+
+Play 업로드용 AAB 패키징은 Capacitor Android 셸을 사용하며, 앱은 운영 사이트 `https://inal.nuni.co.kr`를 로드합니다.
+자세한 내용·재빌드·Play Console 절차는 [docs/android-play.md](docs/android-play.md)를 보세요.

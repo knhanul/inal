@@ -9,3 +9,20 @@ build/
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# Capacitor / Android local & secrets
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/captures/
+android/keystore.properties
+android/*.keystore
+android/*.jks
+*.keystore
+*.jks
+keystore/
+signing/
+*.aab
+*.apk
+.inal-release/

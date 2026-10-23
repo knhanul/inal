@@ -15,9 +15,18 @@
     "preview": "vite preview --port 4173",
     "start": "NODE_ENV=production node server/proxy.mjs",
     "typecheck": "tsc --noEmit",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android:bundle": "cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@tanstack/react-query": "^5.56.2",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
