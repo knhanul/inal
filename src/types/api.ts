@@ -171,6 +171,13 @@ export interface ApiRtForecastHourItem {
   pcpText?: string | null;
   ptyName?: string | null;
   skyName?: string | null;
+  /** 요소별 발표·유효구간 (옷차림 강수 판단에 사용) */
+  items?: Partial<
+    Record<
+      'ta' | 'hm' | 'ws' | 'pop' | 'pcp' | 'pty' | 'sky' | 'sno',
+      { source?: string; base?: string; intervalStart?: string; intervalEnd?: string }
+    >
+  >;
 }
 
 export interface ApiRtForecastDayItem {

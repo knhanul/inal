@@ -55,7 +55,7 @@
 | 엔드포인트 | 주요 파라미터 | 검증된 핵심 응답 필드 | Inal 매핑 화면 및 역할 |
 | :--- | :--- | :--- | :--- |
 | `GET /api/rt/now` | `station` (`108` 등) | `{ ok, now, date, station, method, periods, current: { time, hour, kind, source, freshness, values: { ta, hm, rn1, ws, vec, windDir, pty, sky }, compare: { ta, hm, rn, ws } }, day: { max, min } }` | **오늘** (대표 현재 날씨 히어로 카드, 3대 기준 비교 카드), **비교** (과거 평균 비교) |
-| `GET /api/rt/today` | `station` | `{ ok, now, date, station, grid: { nx, ny, note }, hourly: [{ hour, time, obs, fcst, fcstSource, fcstBase, compare }], summary: { headline, outfit, tempRange, rainNote, segments } }` | **오늘** (12시간·옷차림 카드 및 0~23시 실황·예보 분리 차트 바텀시트) |
+| `GET /api/rt/today` | `station` | `{ ok, now, date, station, grid, hours/hourly, current, day, ... }` — **참고:** 운영 API는 `summary.segments`를 주지 않음. Inal은 `src/lib/outfitSegments.ts`에서 weather와 같은 규칙으로 구간 옷차림을 계산 | **오늘** (12시간·옷차림 카드 및 0~23시 실황·예보 분리 차트 바텀시트) |
 | `GET /api/rt/forecast` | `station` | `{ ok, station, releases: { ultra, vilage, mid }, hours: [{ time, hour, ta, hm, ws, pcp, pty, pop, sky, source, base, pcpText, ptyName, skyName }], days: [...], week: [...] }` | **오늘** (12시간 예보), **예보** (12h/72h 시간별 타임라인, 10일 일별 예보 카드) |
 | `GET /api/rt/forecast-wind` | `station` | `{ ok, station, hours: [{ time, vec, ws, source, base }], note }` | **예보** (시간별 상세 풍향·풍속 예보 및 강풍 주의 구간) |
 | `GET /api/rt/regions` | 없음 | `{ ok, asOf, periods, rows: [{ id, name, category, lat, lon, ta, hm, ws, rn, pty, diff, percentile, rank, summary }], rankings: { maxTa, minTa, maxRn, maxWs }, note }` | **헤더 지역 선택기**, **비교** (한눈에 보기 — 지금 전국은 8대 지점 비교) |

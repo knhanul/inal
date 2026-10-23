@@ -30,6 +30,7 @@ import { WeatherHeroCard } from '../components/cards/WeatherHeroCard';
 import { StoryCard } from '../components/cards/StoryCard';
 import { ForecastCard } from '../components/cards/ForecastCard';
 import { ComparisonCard } from '../components/cards/ComparisonCard';
+import { buildOutfitHeadline, buildOutfitSegmentsChronological } from '../lib/outfitSegments';
 
 interface TodayPageProps {
   stationId: string;
@@ -114,7 +115,14 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
 
     const slots12h = mapForecastHoursToTimeline(forecastQuery.data?.data, 12);
     const todayRaw = todayQuery.data?.data;
+    const forecastRaw = forecastQuery.data?.data;
     const hourlySeries = mapTodayHourlySeries(todayRaw);
+    const outfitSegments =
+      todayRaw?.summary?.segments && todayRaw.summary.segments.length > 0
+        ? todayRaw.summary.segments
+        : buildOutfitSegmentsChronological(todayRaw, forecastRaw);
+    const outfitHeadline =
+      todayRaw?.summary?.headline || buildOutfitHeadline(todayRaw, forecastRaw) || null;
     const releaseBase =
       extractReleaseTime(forecastQuery.data?.data.releases?.ultra) ||
       extractReleaseTime(forecastQuery.data?.data.releases?.vilage) ||
@@ -124,7 +132,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
       id: `today-12h-${stationId}`,
       categoryBadge: '실황 + 예보 시계열',
       title: '오늘 시간별 기온 흐름과 옷차림 기준',
-      subtitle: todayRaw?.summary?.headline || '관측된 시각까지는 실황으로, 이후 시각은 초단기·단기예보로 구분해 표시합니다.',
+      subtitle: outfitHeadline || '관측된 시각까지는 실황으로, 이후 시각은 초단기·단기예보로 구분해 표시합니다.',
       provenance: { kind: 'mix', sourceName: '기상청 초단기실황 · 초단기/단기예보', referenceTime: releaseBase, note: todayRaw?.grid?.note },
       chartSeries: { type: 'hourly-obs-fcst', unit: '℃', points: hourlySeries.filter((_, i) => i % 2 === 0) },
       explanationTitle: '옷차림과 시계열은 어떻게 구성했나요?',
@@ -137,10 +145,10 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
     return (
       <ForecastCard
         title="앞으로 12시간 예보와 옷차림"
-        subtitle={todayRaw?.summary?.headline || '시간대별 기온·강수확률·바람 변화와 추천 옷차림을 한눈에 확인하세요.'}
+        subtitle={outfitHeadline || '시간대별 기온·강수확률·바람 변화와 추천 옷차림을 한눈에 확인하세요.'}
         provenance={{ kind: 'fcst', sourceName: '초단기·단기예보', referenceTime: releaseBase }}
         hourlySlots={slots12h}
-        outfitSegments={todayRaw?.summary?.segments}
+        outfitSegments={outfitSegments}
         detail={detailPayload}
         onOpenDetail={onOpenDetail}
       />
