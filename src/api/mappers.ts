@@ -261,7 +261,9 @@ export function mapDomainToHeroViewModel(domain: CurrentWeatherDomain, basis: Ba
 
   const anomalySubline =
     dist.summary ||
-    (isValidNumber(dist.mean) ? `${dist.periodLabel} 같은 시기·시각 평균 ${formatTemp(dist.mean)}` : '기준 기간 표본 확인 중');
+    (isValidNumber(dist.mean)
+      ? `같은 시기 평균 ${formatTemp(dist.mean)} — ${dist.periodLabel} 같은 시기·시각 평균`
+      : '기준 기간 표본 확인 중');
 
   const windValueText =
     domain.windDirectionText && isValidNumber(domain.windSpeed)

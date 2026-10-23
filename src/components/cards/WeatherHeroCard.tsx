@@ -60,7 +60,7 @@ export const WeatherHeroCard: React.FC<WeatherHeroCardProps> = ({ vm, onOpenDeta
 
       <div className="rounded-2xl bg-inal-accentSoft/65 p-3.5">
         <p className="text-sm font-bold leading-snug text-inal-text">{vm.anomalyHeadline}</p>
-        <InfoTipAuto text={vm.anomalySubline} max={40} label="비교 기준" className="mt-0.5" />
+        <InfoTipAuto text={vm.anomalySubline} max={28} label="비교 기준" className="mt-0.5" />
 
         {isValidNumber(dist.p10) && isValidNumber(dist.p90) && (
           <div className="mt-2.5">
