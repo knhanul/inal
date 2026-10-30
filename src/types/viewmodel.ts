@@ -30,6 +30,8 @@ export interface BottomSheetDetailPayload {
       baselineValue?: number | null;
       kind?: 'obs' | 'fcst' | 'stats';
       note?: string;
+      stepHours?: number;
+      isStepStart?: boolean;
     }>;
   };
   tableRows?: Array<{
@@ -85,6 +87,12 @@ export interface HourlyTimelineSlotViewModel {
   conditionIcon: WeatherConditionTheme;
   conditionText: string;
   kind: 'obs' | 'fcst';
+  /** 이 칸이 대표하는 시간 간격(1 또는 3시간) */
+  stepHours?: number;
+  /** 3시간 간격이 시작되는 첫 칸 */
+  isStepStart?: boolean;
+  /** 날짜가 바뀌는 칸이면 '내일'·'모레'·'11/2' 같은 표시 */
+  dayLabel?: string;
 }
 
 export interface DailyForecastItemViewModel {

@@ -431,28 +431,79 @@ export function mapApiStoriesToViewModels(
   });
 }
 
+function parseKstTime(t?: string | null): number | null {
+  if (!t || t.length < 13) return null;
+  const ms = Date.parse(`${t.slice(0, 10)}T${t.slice(11, 19) || '00:00:00'}+09:00`);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+const HOUR_MS = 3600 * 1000;
+
+/**
+ * 시간별 예보 칸 만들기.
+ * - limit: 칸 개수 제한(12시간 카드용)
+ * - hoursWindow: 첫 칸 기준 시간 범위(72시간 카드용). 기상청 단기예보는 모레 24시까지 1시간,
+ *   그 뒤는 3시간 간격이라 칸 개수로 자르면 72시간이 안 되므로 시간으로 자른다.
+ */
 export function mapForecastHoursToTimeline(
   raw: ApiRtForecastResponse | undefined,
-  limit = 12
+  limit = 12,
+  hoursWindow?: number
 ): HourlyTimelineSlotViewModel[] {
   if (!raw?.hours || !Array.isArray(raw.hours)) return [];
-  return raw.hours.slice(0, limit).map((item) => {
+  const all = raw.hours;
+  const firstMs = parseKstTime(all[0]?.time);
+  let list = all;
+  if (hoursWindow && firstMs !== null) {
+    list = all.filter((h) => {
+      const ms = parseKstTime(h.time);
+      return ms === null || ms - firstMs <= hoursWindow * HOUR_MS;
+    });
+  } else {
+    list = all.slice(0, limit);
+  }
+  const firstDay = all[0]?.time?.slice(0, 10);
+  let prevStep = 1;
+  return list.map((item, idx) => {
     const hourNum = typeof item.hour === 'number' ? item.hour : Number(item.time?.slice(11, 13) || 0);
     const ptyLabel = item.ptyName || (typeof item.pty === 'string' ? item.pty : null);
     const skyLabel = item.skyName || (typeof item.sky === 'string' ? item.sky : null);
     const condTheme = resolveConditionTheme(ptyLabel ?? item.pty, skyLabel ?? item.sky, hourNum);
     const hasPty = ptyLabel && ptyLabel !== '없음' && ptyLabel !== '0';
+    // 간격: 이전 칸과의 차이(첫 칸은 다음 칸과의 차이)
+    const ms = parseKstTime(item.time);
+    const prevMs = idx > 0 ? parseKstTime(list[idx - 1].time) : null;
+    let step = 1;
+    if (ms !== null && prevMs !== null) step = Math.max(1, Math.round((ms - prevMs) / HOUR_MS));
+    const isStepStart = idx > 0 && step >= 3 && prevStep < 3;
+    prevStep = step;
+    // 강수확률: 초단기예보(현재 시각)에는 POP가 없으므로 강수형태·강수량으로 대신 표시
+    let popText = formatPercent(item.pop);
+    if (!isValidNumber(item.pop)) {
+      const pcp = typeof item.pcp === 'string' ? item.pcp : '';
+      if (hasPty) popText = ptyLabel!;
+      else if (pcp === '강수 없음' || ptyLabel === '없음') popText = '없음';
+    }
+    let dayLabel: string | undefined;
+    const day = item.time?.slice(0, 10);
+    if (day && firstDay && day !== firstDay && (idx === 0 || list[idx - 1].time?.slice(0, 10) !== day)) {
+      const diffDays = Math.round((Date.parse(`${day}T00:00:00+09:00`) - Date.parse(`${firstDay}T00:00:00+09:00`)) / (24 * HOUR_MS));
+      dayLabel = diffDays === 1 ? '내일' : diffDays === 2 ? '모레' : `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
+    }
     return {
       timeLabel: `${hourNum}시`,
       hour: hourNum,
       tempText: formatTemp(item.ta),
       tempValue: isValidNumber(item.ta) ? item.ta : null,
-      popText: formatPercent(item.pop),
+      popText,
       popValue: isValidNumber(item.pop) ? item.pop : null,
       windText: formatWindSpeed(item.ws),
       conditionIcon: condTheme,
       conditionText: hasPty ? ptyLabel! : skyLabel || '예보',
       kind: 'fcst',
+      stepHours: step,
+      isStepStart,
+      dayLabel,
     };
   });
 }

@@ -1,4 +1,4 @@
-const STATIC_CACHE_NAME = 'inal-static-v1';
+const STATIC_CACHE_NAME = 'inal-static-v2';
 const PRECACHE_URLS = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icons/inal-icon.svg'];
 
 self.addEventListener('install', (event) => {

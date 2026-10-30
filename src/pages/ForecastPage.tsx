@@ -52,7 +52,7 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
     }
 
     const slots12h = mapForecastHoursToTimeline(fcstRaw, 12);
-    const slots72h = mapForecastHoursToTimeline(fcstRaw, 24);
+    const slots72h = mapForecastHoursToTimeline(fcstRaw, 0, 72);
     const windHours = windQuery.data?.data.hours || [];
     const ultraBase = extractReleaseTime(releases?.ultra);
     const vilageBase = extractReleaseTime(releases?.vilage);
@@ -74,6 +74,35 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       ],
     };
 
+    const detail72h: BottomSheetDetailPayload = {
+      id: `fcst-72h-${stationId}`,
+      categoryBadge: '72시간 단기예보',
+      title: `${station.name} 앞으로 72시간 기온·강수`,
+      subtitle: '기상청 단기예보는 모레 24시까지 1시간 간격, 그 뒤는 3시간 간격입니다. 그래프는 실제 시간 간격대로 그립니다.',
+      provenance: { kind: 'fcst', sourceName: '기상청 초단기예보 · 단기예보', referenceTime: vilageBase || ultraBase || '최신 발표' },
+      chartSeries: {
+        type: 'hourly-obs-fcst',
+        unit: '℃',
+        points: slots72h.map((s) => ({
+          label: s.dayLabel ? `${s.dayLabel} ${s.timeLabel}` : s.timeLabel,
+          primaryValue: s.tempValue,
+          kind: 'fcst' as const,
+          stepHours: s.stepHours,
+          isStepStart: s.isStepStart,
+        })),
+      },
+      tableRows: slots72h.map((s) => ({
+        label: `${s.dayLabel ? `${s.dayLabel} ` : ''}${s.timeLabel}${(s.stepHours ?? 1) >= 3 ? ' (3시간)' : ''}`,
+        col1: s.tempText,
+        col2: `강수 ${s.popText}`,
+        col3: `바람 ${s.windText}`,
+      })),
+      explanationBody: [
+        `초단기예보 발표: ${ultraBase || '확인 중'} / 단기예보 발표: ${vilageBase || '확인 중'}`,
+        '지금 시각 칸은 초단기예보라 강수확률이 없어서 강수 형태(없음·비 등)로 표시합니다.',
+      ],
+    };
+
     return [
       <ForecastCard
         key="card-12h"
@@ -87,10 +116,10 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="card-72h"
         title="72시간(3일) 단기예보 흐름"
-        subtitle="모레까지 시간별 기온·강수 예보"
+        subtitle="모레 24시까지 1시간, 이후 3시간 간격 기온·강수 예보"
         provenance={{ kind: 'fcst', sourceName: '기상청 단기예보', referenceTime: vilageBase || '하루 8회 발표' }}
         hourlySlots={slots72h}
-        detail={detail12h}
+        detail={detail72h}
         onOpenDetail={onOpenDetail}
       />,
       <ComparisonCard

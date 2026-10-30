@@ -97,16 +97,25 @@ export const DetailBottomSheet: React.FC<DetailBottomSheetProps> = ({ detail, on
                   return detail.chartSeries!.points.map((pt, i) => {
                     const heightPct = isValidNumber(pt.primaryValue) ? Math.round(((pt.primaryValue - minV) / span) * 64 + 20) : 12;
                     const barColor = pt.kind === 'fcst' ? 'bg-sky-500/85 border border-dashed border-sky-700' : 'bg-inal-accent';
+                    const w = 34 * Math.max(1, pt.stepHours ?? 1) + 8 * (Math.max(1, pt.stepHours ?? 1) - 1);
                     return (
-                      <div key={pt.label + i} className="flex min-w-[34px] flex-col items-center gap-1">
+                      <React.Fragment key={pt.label + i}>
+                      {pt.isStepStart && (
+                        <div className="flex shrink-0 flex-col items-center self-stretch">
+                          <div className="flex-1 border-l-2 border-dashed border-sky-400" />
+                          <span className="whitespace-nowrap text-[9px] font-bold text-sky-700">이후 3시간 간격</span>
+                        </div>
+                      )}
+                      <div className="flex shrink-0 flex-col items-center gap-1" style={{ minWidth: `${w}px` }}>
                         <span className="text-[10px] font-semibold tabular-nums text-inal-text">
                           {isValidNumber(pt.primaryValue) ? pt.primaryValue : '-'}
                         </span>
                         <div className="flex h-20 w-full items-end justify-center">
                           <div className={`w-3.5 rounded-t-md ${barColor}`} style={{ height: `${heightPct}%` }} />
                         </div>
-                        <span className="text-[10px] tabular-nums text-inal-textMuted">{pt.label}</span>
+                        <span className="whitespace-nowrap text-[10px] tabular-nums text-inal-textMuted">{pt.label}</span>
                       </div>
+                      </React.Fragment>
                     );
                   });
                 })()}
