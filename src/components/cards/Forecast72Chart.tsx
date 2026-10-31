@@ -356,7 +356,11 @@ export const Forecast72Chart: React.FC<Forecast72ChartProps> = ({ slots, slotTim
             <button
               key={`chip-${i}`}
               type="button"
-              onClick={() => setSelected(i)}
+              onClick={() => {
+                setSelected(i);
+                const gIdx = groups.findIndex((g) => g.indices.includes(i));
+                if (gIdx >= 0) setActiveDay(gIdx);
+              }}
               className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl border px-0.5 py-1.5 ${
                 isSel
                   ? 'border-inal-accent bg-inal-accentSoft'
