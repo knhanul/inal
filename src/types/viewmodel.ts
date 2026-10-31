@@ -93,6 +93,8 @@ export interface HourlyTimelineSlotViewModel {
   isStepStart?: boolean;
   /** 날짜가 바뀌는 칸이면 '내일'·'모레'·'11/2' 같은 표시 */
   dayLabel?: string;
+  /** 이 칸의 실제 시각(ms). 72시간 그래프를 실제 시간 간격대로 그릴 때 쓴다. */
+  timeMs?: number | null;
 }
 
 export interface DailyForecastItemViewModel {

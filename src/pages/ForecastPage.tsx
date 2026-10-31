@@ -22,6 +22,7 @@ import { CardCarousel } from '../components/common/CardCarousel';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { ErrorState } from '../components/common/ErrorState';
 import { ForecastCard } from '../components/cards/ForecastCard';
+import { Forecast72Chart } from '../components/cards/Forecast72Chart';
 import { ComparisonCard } from '../components/cards/ComparisonCard';
 
 interface ForecastPageProps {
@@ -107,18 +108,25 @@ export const ForecastPage: React.FC<ForecastPageProps> = ({ stationId, onOpenDet
       <ForecastCard
         key="card-12h"
         title={`${station.name} 앞으로 12시간 예보`}
-        subtitle="시간대별 기온·강수확률·풍속"
+        subtitle="두 줄로 펼쳐 옆으로 밀지 않아도 12시간을 다 봅니다."
         provenance={{ kind: 'fcst', sourceName: '초단기·단기예보', referenceTime: ultraBase || vilageBase || '' }}
         hourlySlots={slots12h}
+        timelineVariant="grid"
         detail={detail12h}
         onOpenDetail={onOpenDetail}
       />,
       <ForecastCard
         key="card-72h"
         title="72시간(3일) 단기예보 흐름"
-        subtitle="모레 24시까지 1시간, 이후 3시간 간격 기온·강수 예보"
+        subtitle="사흘 흐름은 그래프로 한 번에, 날짜별 3시간 값은 아래에서 골라 봅니다."
         provenance={{ kind: 'fcst', sourceName: '기상청 단기예보', referenceTime: vilageBase || '하루 8회 발표' }}
-        hourlySlots={slots72h}
+        hourlyCustom={
+          <Forecast72Chart
+            slots={slots72h}
+            slotTimesMs={slots72h.map((s) => s.timeMs ?? null)}
+            stationName={station.name}
+          />
+        }
         detail={detail72h}
         onOpenDetail={onOpenDetail}
       />,

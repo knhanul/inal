@@ -18,6 +18,10 @@ interface ForecastCardProps {
   subtitle: string;
   provenance: DataProvenance;
   hourlySlots?: HourlyTimelineSlotViewModel[];
+  /** 시간 칸 대신 직접 만든 그래프·탭 UI를 넣을 때 */
+  hourlyCustom?: React.ReactNode;
+  /** 'scroll' 한 줄 가로 스크롤(기본), 'grid' 두 줄 격자 */
+  timelineVariant?: 'scroll' | 'grid';
   dailyItems?: DailyForecastItemViewModel[];
   outfitSegments?: ApiRtTodayOutfitSegment[];
   detail?: BottomSheetDetailPayload;
@@ -29,6 +33,8 @@ export const ForecastCard: React.FC<ForecastCardProps> = ({
   subtitle,
   provenance,
   hourlySlots,
+  hourlyCustom,
+  timelineVariant = 'scroll',
   dailyItems,
   outfitSegments,
   detail,
@@ -42,9 +48,11 @@ export const ForecastCard: React.FC<ForecastCardProps> = ({
         <InfoTipAuto text={subtitle} max={44} label="안내" className="mt-0.5" />
       </div>
 
-      {hourlySlots && hourlySlots.length > 0 && (
+      {hourlyCustom && <div className="my-3.5">{hourlyCustom}</div>}
+
+      {!hourlyCustom && hourlySlots && hourlySlots.length > 0 && (
         <div className="my-3.5">
-          <ForecastTimeline slots={hourlySlots} />
+          <ForecastTimeline slots={hourlySlots} variant={timelineVariant} showWind={timelineVariant === 'scroll'} />
         </div>
       )}
 

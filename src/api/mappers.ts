@@ -504,6 +504,7 @@ export function mapForecastHoursToTimeline(
       stepHours: step,
       isStepStart,
       dayLabel,
+      timeMs: ms,
     };
   });
 }
