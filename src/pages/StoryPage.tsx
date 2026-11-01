@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { Swords, CalendarHeart, HelpCircle, Plus, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Swords, CalendarHeart, CalendarDays, HelpCircle, Plus, X } from 'lucide-react';
 import type { BottomSheetDetailPayload, StoryCardViewModel } from '../types/viewmodel';
+import type { ApiCalendarEvent } from '../types/api';
 import { getStationById } from '../api/endpoints';
 import {
   useStatsHighlightsQuery,
   useStatsDateWeatherQuery,
   useStatsDateBattleQuery,
   useRtRecordsQuery,
+  useCalendarEventsQuery,
 } from '../hooks/useWeatherQueries';
+import { eventsOfYear, sameMonthDayEvents, shortEventLabel } from '../lib/calendarEvents';
 import { formatTemp, formatRainfall, formatWindSpeed, formatPercent, isValidNumber } from '../api/mappers';
 import { CardCarousel } from '../components/common/CardCarousel';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
@@ -27,11 +30,52 @@ const STORY_TAB_LABELS = [
   '과거 같은 날·기록',
 ];
 
+/** 시험(수능·학력고사)은 강조, 명절은 차분하게 그리려고 나눠 둔다. */
+const EXAM_KINDS = new Set(['csat', 'hakryeok']);
+
+/** 'YYYY-MM-DD' → { month, day } */
+function monthDayOf(solarDate: string): { month: number; day: number } {
+  return { month: Number(solarDate.slice(5, 7)), day: Number(solarDate.slice(8, 10)) };
+}
+
+/**
+ * 고른 '월·일'에 걸린 역대 특정일 한 줄. 예: "11월 13일은 역대 수능일이었습니다 (4회)"
+ * + 연도 라벨 줄 "2026학년도 · 2015학년도 · 2009학년도 외 1회". 값은 모두 API 응답에서만 만든다.
+ */
+function describeMonthDayHits(
+  hits: Array<{ year: number; event: ApiCalendarEvent }>,
+  month: number,
+  day: number,
+): { headline: string; detail: string } {
+  const examNames: string[] = [];
+  const otherNames: string[] = [];
+  for (const h of hits) {
+    const isExam = EXAM_KINDS.has(h.event.kind);
+    const name = isExam ? shortEventLabel(h.event) : h.event.label || shortEventLabel(h.event);
+    const bucket = isExam ? examNames : otherNames;
+    if (name && !bucket.includes(name)) bucket.push(name);
+  }
+  const phrases: string[] = [];
+  if (examNames.length) phrases.push(`역대 ${examNames.join('·')}일이었습니다`);
+  if (otherNames.length) phrases.push(`${otherNames.join('·')}이었던 해가 있습니다`);
+  const countSuffix = hits.length >= 2 ? ` (${hits.length}회)` : '';
+  const headline = `${month}월 ${day}일은 ${phrases.join(' · ') || '특정일이 있던 날입니다'}${countSuffix}`;
+
+  const labels = hits.slice(0, 3).map((h) => h.event.yearLabel || `${h.year}년`);
+  const rest = hits.length - labels.length;
+  const detail = labels.length ? `${labels.join(' · ')}${rest > 0 ? ` 외 ${rest}회` : ''}` : '';
+  return { headline, detail };
+}
+
 export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail }) => {
   const station = getStationById(stationId);
   const [selectedQuestionIdx, setSelectedQuestionIdx] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(10);
   const [selectedDay, setSelectedDay] = useState(22);
+  // '날짜로 보는 날씨' 카드가 보일 때만 특정일 달력을 부른다(캐러셀 1번째).
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  // null 이면 '올해'(이벤트가 없으면 가장 최근 해)를 쓴다.
+  const [calendarYear, setCalendarYear] = useState<number | null>(null);
   const [battleCases, setBattleCases] = useState<Array<{ id: string; month: number; day: number }>>([
     { id: 'A', month: 10, day: 22 },
     { id: 'B', month: 5, day: 5 },
@@ -41,6 +85,17 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
   const dateWeatherQuery = useStatsDateWeatherQuery(stationId, selectedMonth, selectedDay, true);
   const battleQuery = useStatsDateBattleQuery(stationId, battleCases, true);
   const recordsQuery = useRtRecordsQuery(stationId, true);
+
+  // 특정일 달력: 1990년~올해+2년을 한 번 받아 화면에서 골라 쓴다. 지점과 무관한 공개 자료다.
+  const calendarRange = useMemo(() => {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    // '역대 ...일이었습니다' 줄은 이미 지나간 날만 센다(올해 남은 날은 아직 열리지 않은 달력 정보).
+    const todayKey = `${thisYear}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return { from: 1990, to: thisYear + 2, thisYear, todayKey };
+  }, []);
+  const calendarQuery = useCalendarEventsQuery(calendarRange.from, calendarRange.to, activeCardIndex === 1);
+  const calendarEvents = calendarQuery.data?.data.events ?? [];
 
   const battleCaseLabel = (c: { month: number; day: number }) => `${c.month}월 ${c.day}일`;
   const daysInMonth = (month: number) => [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] || 31;
@@ -196,6 +251,27 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
               summary: isValidNumber(r.values?.rain) && r.values!.rain! >= 0.1 ? `강수 ${r.values!.rain}mm` : '비 없음',
             }));
 
+    // ---- 특정일(설날·추석·수능·학력고사) — 날씨 값과 무관한 달력 정보. 실패해도 카드 본문은 그대로 보여 준다.
+    const calendarLoading = calendarQuery.isLoading && !calendarQuery.data;
+    const sameDayHits = sameMonthDayEvents(calendarEvents, selectedMonth, selectedDay).filter(
+      (h) => h.event.solarDate <= calendarRange.todayKey,
+    );
+    const sameDayLine = sameDayHits.length ? describeMonthDayHits(sameDayHits, selectedMonth, selectedDay) : null;
+
+    // 칩으로 보여 줄 해: 고른 해가 있으면 그 해, 없으면 올해, 올해 자료가 없으면 올해 이하에서 가장 최근 해
+    // (그것도 없으면 이후 첫 해). 연도 select 목록은 API 가 실제로 준 해만 쓴다.
+    const yearsWithEvents = Array.from(
+      new Set(calendarEvents.map((e) => Number(e.solarDate.slice(0, 4))).filter((y) => Number.isFinite(y))),
+    ).sort((a, b) => b - a);
+    const pastYears = yearsWithEvents.filter((y) => y <= calendarRange.thisYear);
+    const fallbackYear =
+      (yearsWithEvents.includes(calendarRange.thisYear) && calendarRange.thisYear) ||
+      pastYears[0] ||
+      yearsWithEvents[yearsWithEvents.length - 1] ||
+      calendarRange.thisYear;
+    const chipYear = calendarYear ?? fallbackYear;
+    const yearEvents = eventsOfYear(calendarEvents, chipYear);
+
     return (
       <ComparisonCard
         badgeText="내가 기억하는 이날"
@@ -208,7 +284,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
           { label: '비 왔던 해 비율', valueText: formatPercent(rainProb), isMissing: rainProb === null },
         ]}
       >
-        <div data-no-carousel-swipe="true" className="rounded-2xl border border-inal-border bg-inal-surfaceSubtle/60 p-3 space-y-2.5">
+        <div data-no-carousel-swipe="true" className="min-w-0 rounded-2xl border border-inal-border bg-inal-surfaceSubtle/60 p-3 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1 text-xs font-bold text-inal-text">
               <CalendarHeart className="h-3.5 w-3.5 text-inal-accent" />
@@ -227,6 +303,14 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
               </select>
             </div>
           </div>
+          {sameDayLine && (
+            <div className="rounded-xl border border-inal-accent/30 bg-inal-accentSoft/70 px-3 py-2">
+              <p className="break-keep text-[11px] font-bold leading-snug text-inal-accent">{sameDayLine.headline}</p>
+              {sameDayLine.detail && (
+                <p className="mt-0.5 break-keep text-[10.5px] font-medium leading-snug text-inal-textMuted">{sameDayLine.detail}</p>
+              )}
+            </div>
+          )}
           <div className="space-y-1.5 pt-1">
             {hist.slice(0, 3).map((h) => (
               <div key={h.year} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-xs">
@@ -235,6 +319,71 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
               </div>
             ))}
           </div>
+        </div>
+
+        <div data-no-carousel-swipe="true" className="mt-2.5 min-w-0 rounded-2xl border border-inal-border bg-inal-surfaceSubtle/60 p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-inal-text">
+              <CalendarDays className="h-3.5 w-3.5 text-inal-accent" />
+              <span>{chipYear}년 특정일</span>
+            </span>
+            {yearsWithEvents.length > 1 && (
+              <select
+                aria-label="특정일 연도 선택"
+                value={chipYear}
+                onChange={(e) => setCalendarYear(Number(e.target.value))}
+                className="h-8 rounded-lg border border-inal-border bg-white px-2 text-[11px] font-bold text-inal-textMuted"
+              >
+                {yearsWithEvents.map((y) => (
+                  <option key={y} value={y}>{y}년</option>
+                ))}
+              </select>
+            )}
+          </div>
+          {calendarLoading ? (
+            <p className="text-[11px] font-medium text-inal-textMuted">특정일을 불러오는 중입니다…</p>
+          ) : calendarQuery.isError ? (
+            <p className="text-[11px] font-medium text-inal-textMuted">
+              특정일을 불러오지 못했습니다.{' '}
+              <button type="button" onClick={() => calendarQuery.refetch()} className="font-bold text-inal-accent underline">
+                다시 시도
+              </button>
+            </p>
+          ) : yearEvents.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {yearEvents.map((e) => {
+                const { month, day } = monthDayOf(e.solarDate);
+                const isExam = EXAM_KINDS.has(e.kind);
+                const isPicked = month === selectedMonth && day === selectedDay;
+                return (
+                  <button
+                    key={`${e.id}-${e.solarDate}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMonth(month);
+                      setSelectedDay(day);
+                    }}
+                    aria-label={`${month}월 ${day}일 날씨 보기 — ${e.label}`}
+                    aria-pressed={isPicked}
+                    title={`${e.label}${e.yearLabel ? ` · ${e.yearLabel}` : ''}${e.lunarText ? ` · ${e.lunarText}` : ''}`}
+                    className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                      isExam
+                        ? 'border-inal-accent/40 bg-inal-accentSoft text-inal-accent'
+                        : 'border-inal-border bg-white text-inal-textMuted'
+                    } ${isPicked ? 'ring-2 ring-inal-accent ring-offset-1' : ''}`}
+                  >
+                    <span className="shrink-0 tabular-nums">{month}.{day}</span>
+                    <span className="truncate">{shortEventLabel(e)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[11px] font-medium text-inal-textMuted">이 해에 등록된 특정일이 없습니다.</p>
+          )}
+          <p className="break-keep text-[10px] leading-snug text-inal-textSoft">
+            특정일은 달력 정보이며 위 날씨 값과 무관합니다. 눌러서 그 날짜의 날씨를 볼 수 있어요.
+          </p>
         </div>
       </ComparisonCard>
     );
@@ -450,7 +599,15 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
 
   const renderHistoricalRecordsStoryCard = () => {
     const recDays = recordsQuery.data?.data.days || [];
-    const rows = recDays.flatMap((d, idx) => {
+    // 서버는 앞으로 며칠(예: 11.1~11.10)마다 ±7일 창의 극값을 준다. 창이 하루씩 밀리면 같은 기록이 여러 줄에
+    // 겹쳐 보이므로(25.9℃ 2011-11-05 가 두 번), 카드에는 이 기간 전체에서 가장 높은 최고기온과 가장 낮은
+    // 최저기온 딱 두 줄만 남긴다. 같은 값이면 관측일이 이른 쪽을 쓴다.
+    const mdOf = (v?: string) => (v && v.length >= 10 ? `${Number(v.slice(5, 7))}.${Number(v.slice(8, 10))}` : v || '');
+    let hot: { value: number; date: string; basis: string } | null = null;
+    let cold: { value: number; date: string; basis: string } | null = null;
+    const extra: Array<{ id: string; title: string; subtitle: string; primaryText: string }> = [];
+    const seenExtra = new Set<string>();
+    recDays.forEach((d, idx) => {
       const dAny = d as unknown as {
         kind?: string;
         periods?: Array<{
@@ -460,36 +617,51 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
         }>;
       };
       if (d.title && d.unit !== undefined) {
-        return [
-          {
-            id: d.id || `rec-${idx}`,
-            title: d.title,
-            subtitle: `${d.date} 관측`,
-            primaryText: `${d.value ?? '-'}${d.unit}`,
-          },
-        ];
+        const key = `item|${d.title}|${d.date}|${d.value ?? ''}`;
+        if (seenExtra.has(key)) return;
+        seenExtra.add(key);
+        extra.push({
+          id: d.id || `rec-${idx}`,
+          title: d.title,
+          subtitle: `${d.date} 관측`,
+          primaryText: `${d.value ?? '-'}${d.unit}`,
+        });
+        return;
       }
       const p = dAny.periods?.find((x) => x.id === 'all') || dAny.periods?.[0];
-      if (!p) return [];
-      const items = [];
-      if (p.recMax?.value !== undefined) {
-        items.push({
-          id: `story-rec-max-${d.date}-${idx}`,
-          title: `${dAny.kind || d.date} 이맘때 역대 최고기온`,
-          subtitle: `${p.recMax.date || d.date} 관측 (±7일 창)`,
-          primaryText: formatTemp(p.recMax.value),
-        });
+      if (!p) return;
+      // 어느 날짜를 기준으로 본 ±7일 창인지 남긴다(같은 값이 다른 창에서 또 나올 수 있어서).
+      const basis = d.date ? `${mdOf(d.date)} 기준 ±7일` : '±7일 창';
+      const vMax = p.recMax?.value;
+      const vMin = p.recMin?.value;
+      if (isValidNumber(vMax) && (hot === null || vMax > hot.value)) {
+        hot = { value: vMax, date: p.recMax?.date || '', basis };
       }
-      if (p.recMin?.value !== undefined) {
-        items.push({
-          id: `story-rec-min-${d.date}-${idx}`,
-          title: `${dAny.kind || d.date} 이맘때 역대 최저기온`,
-          subtitle: `${p.recMin.date || d.date} 관측 (±7일 창)`,
-          primaryText: formatTemp(p.recMin.value),
-        });
+      if (isValidNumber(vMin) && (cold === null || vMin < cold.value)) {
+        cold = { value: vMin, date: p.recMin?.date || '', basis };
       }
-      return items;
     });
+
+    const rows: Array<{ id: string; title: string; subtitle: string; primaryText: string }> = [];
+    if (hot) {
+      const h = hot as { value: number; date: string; basis: string };
+      rows.push({
+        id: 'story-rec-max',
+        title: '이 시기 역대 최고기온',
+        subtitle: `${h.date ? `${h.date} 관측 · ` : ''}${h.basis}`,
+        primaryText: formatTemp(h.value),
+      });
+    }
+    if (cold) {
+      const c = cold as { value: number; date: string; basis: string };
+      rows.push({
+        id: 'story-rec-min',
+        title: '이 시기 역대 최저기온',
+        subtitle: `${c.date ? `${c.date} 관측 · ` : ''}${c.basis}`,
+        primaryText: formatTemp(c.value),
+      });
+    }
+    rows.push(...extra);
 
     return (
       <ComparisonCard
@@ -505,12 +677,13 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
 
   return (
     <div className="space-y-3">
-      <CardCarousel cardLabels={STORY_TAB_LABELS} ariaLabel="날씨 이야기 카드 목록">
+      <CardCarousel cardLabels={STORY_TAB_LABELS} ariaLabel="날씨 이야기 카드 목록" onIndexChange={setActiveCardIndex}>
+        {/* 배열로 넘기면 React 가 key 를 요구해 콘솔 경고가 난다 — 카드마다 key 를 붙인 조각으로 감싼다(화면에는 영향 없음). */}
         {[
-          renderQuestionsCard(),
-          renderDateWeatherCard(),
-          renderWeatherBattleCard(),
-          renderHistoricalRecordsStoryCard(),
+          <React.Fragment key="story-questions">{renderQuestionsCard()}</React.Fragment>,
+          <React.Fragment key="story-date">{renderDateWeatherCard()}</React.Fragment>,
+          <React.Fragment key="story-battle">{renderWeatherBattleCard()}</React.Fragment>,
+          <React.Fragment key="story-records">{renderHistoricalRecordsStoryCard()}</React.Fragment>,
         ]}
       </CardCarousel>
     </div>

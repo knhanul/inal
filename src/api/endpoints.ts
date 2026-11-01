@@ -48,4 +48,6 @@ export const WEATHER_ENDPOINTS = {
     return `${API_BASE}/stats/date-battle?stn=${encodeURIComponent(station)}&cases=${encodeURIComponent(cases)}&period=recent10&part=summary`;
   },
   highlights: (station: string) => `${API_BASE}/stats/highlights?station=${encodeURIComponent(station)}`,
+  /** 특정일(설날·추석·수능 등). 지점과 무관한 달력 자료라 station 파라미터가 없다. */
+  calendarEvents: (from: number, to: number) => `${API_BASE}/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
 } as const;

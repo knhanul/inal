@@ -102,7 +102,7 @@ for (const relPath of REQUIRED_FILES) {
 
 console.log('\n=== [2/4] 읽기 전용 API 프록시 화이트리스트 및 차단 정책 검증 ===');
 
-check('18개 조회 엔드포인트 화이트리스트 등록 확인', () => {
+check('19개 조회 엔드포인트 화이트리스트 등록 확인', () => {
   const expectedRoutes = [
     '/api/rt/now',
     '/api/rt/today',
@@ -122,12 +122,13 @@ check('18개 조회 엔드포인트 화이트리스트 등록 확인', () => {
     '/api/stats/date-battle',
     '/api/stats/calendar-map',
     '/api/stats/highlights',
+    '/api/calendar/events',
   ];
   for (const route of expectedRoutes) {
     const res = matchAllowedRoute(route);
     assert.equal(res.allowed, true, `${route} 는 허용되어야 합니다.`);
   }
-  assert.equal(ALLOWED_READONLY_ROUTES.length >= 18, true);
+  assert.equal(ALLOWED_READONLY_ROUTES.length >= 19, true);
 });
 
 check('관리자·수집·인증·DB 변경 API 경로는 403 차단 대상인지 확인', () => {
@@ -153,6 +154,18 @@ check('쿼리 파라미터 정제 및 station <-> stn 자동 호환 매핑 확�
   assert.equal(cleanedRt.get('station'), '159');
   assert.equal(cleanedRt.get('basis'), 'r10');
   assert.equal(cleanedRt.has('malicious'), false);
+});
+
+check('특정일 달력(/api/calendar/events)은 조회만 통과하고 연도 쿼리는 그대로 전달되는지 확인', () => {
+  assert.equal(matchAllowedRoute('/api/calendar/events').allowed, true);
+  const cleaned = sanitizeSearchParams(new URLSearchParams('from=1990&to=2027&x=<b>'), '/api/calendar/events');
+  assert.equal(cleaned.get('from'), '1990');
+  assert.equal(cleaned.get('to'), '2027');
+  assert.equal(cleaned.has('x'), false);
+  // 이날은 읽기 전용 — 관리자용 원본 목록(all=1)·쓰기 경로는 화이트리스트에 없다.
+  assert.equal(matchAllowedRoute('/api/calendar/events/some-id').allowed, false);
+  assert.equal(matchAllowedRoute('/api/calendar/seed').allowed, false);
+  assert.equal(matchAllowedRoute('/api/calendar/import').allowed, false);
 });
 
 console.log('\n=== [3/4] 프록시 HTTP 서버 동작·캐시·메서드 차단 통합 테스트 ===');

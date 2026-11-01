@@ -18,6 +18,8 @@ export const ALLOWED_READONLY_ROUTES = [
   { path: '/api/stats/calendar-map', ttlSeconds: 600, category: 'stats' },
   { path: '/api/stats/highlights', ttlSeconds: 600, category: 'stats' },
   { path: '/api/stations', ttlSeconds: 1800, category: 'meta' },
+  // 특정일(설날·추석·수능·학력고사) 달력 — 공개 읽기 전용. 하루 두어 번 바뀌는 자료라 10분 캐시.
+  { path: '/api/calendar/events', ttlSeconds: 600, category: 'stats' },
 ];
 
 export const BLOCKED_PATH_PREFIXES = [

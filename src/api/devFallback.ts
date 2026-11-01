@@ -1,5 +1,7 @@
 import { getStationById, ASOS_STATIONS } from './endpoints';
 import type {
+  ApiCalendarEvent,
+  ApiCalendarEventsResponse,
   ApiRtNowResponse,
   ApiRtTodayResponse,
   ApiRtForecastResponse,
@@ -663,4 +665,38 @@ export function getDevFallbackDateBattle(stationId: string, date1: string, date2
       scoreDiff: 15,
     },
   };
+}
+
+/**
+ * 개발 모드용 가짜 특정일 달력 (VITE_ENABLE_DEV_FALLBACK=true 이거나 ?devFallback=1 일 때만 쓰입니다).
+ * 실제 값이 아닙니다 — 화면 모양을 확인하려고 넣은 최소 표본이고, 운영에서는 weather.nuni.co.kr
+ * /api/calendar/events 의 실제 응답을 그대로 씁니다. 요청한 해 범위 안의 연도만 돌려줍니다.
+ */
+export function getDevFallbackCalendarEvents(from: number, to: number): ApiCalendarEventsResponse {
+  const rows: Array<{ kind: 'csat' | 'holiday'; label: string; yearLabel: string | null; solarDate: string }> = [
+    { kind: 'holiday', label: '설날', yearLabel: null, solarDate: '2025-01-29' },
+    { kind: 'holiday', label: '추석', yearLabel: null, solarDate: '2025-10-06' },
+    { kind: 'csat', label: '2026학년도 대학수학능력시험', yearLabel: '2026학년도', solarDate: '2025-11-13' },
+    { kind: 'holiday', label: '설날', yearLabel: null, solarDate: '2026-02-17' },
+    { kind: 'holiday', label: '추석', yearLabel: null, solarDate: '2026-09-25' },
+    { kind: 'csat', label: '2027학년도 대학수학능력시험', yearLabel: '2027학년도', solarDate: '2026-11-19' },
+  ];
+  const events: ApiCalendarEvent[] = rows
+    .filter((r) => {
+      const y = Number(r.solarDate.slice(0, 4));
+      return y >= from && y <= to;
+    })
+    .map((r, i) => ({
+      id: `dev-fallback-cal-${i}`,
+      kind: r.kind,
+      kindLabel: r.kind === 'csat' ? '대학수학능력시험' : '명절·기념일',
+      label: r.label,
+      note: null,
+      oneOff: r.kind !== 'holiday',
+      year: Number(r.solarDate.slice(0, 4)),
+      yearLabel: r.yearLabel,
+      solarDate: r.solarDate,
+      lunarText: null,
+    }));
+  return { ok: true, version: 'calendar-events.v1', events, errors: [] };
 }

@@ -516,3 +516,35 @@ export interface ApiStatsHighlightsResponse {
   source?: string;
   cards: ApiStatsHighlightCard[];
 }
+
+/** 특정일 종류 — 대학수학능력시험 / 학력고사 / 명절·기념일 / 직접 추가. weather.nuni.co.kr /api/calendar/events 기준. */
+export type ApiCalendarEventKind = 'csat' | 'hakryeok' | 'holiday' | 'custom';
+
+/**
+ * /api/calendar/events 의 한 건. 음력(설날·추석)은 서버가 이미 양력 날짜(solarDate)로 바꿔 준다.
+ * 앱에서는 음력을 다시 계산하지 않고 solarDate 만 쓴다.
+ */
+export interface ApiCalendarEvent {
+  id: string;
+  kind: ApiCalendarEventKind | string;
+  kindLabel: string;
+  label: string;
+  note: string | null;
+  /** 그 해 한 번뿐인 날(수능·학력고사 등)이면 true. 설날·추석 같은 반복 규칙은 false. */
+  oneOff: boolean;
+  /** 기준 연도. 설날·추석은 그 양력 날짜의 해, 수능은 시험을 본 해. */
+  year: number;
+  /** '2026학년도' 같은 표기. 없으면 null. */
+  yearLabel: string | null;
+  /** 그 해의 양력 날짜 YYYY-MM-DD */
+  solarDate: string;
+  /** 예: '음력 2026년 1월 1일'. 없으면 null. */
+  lunarText: string | null;
+}
+
+export interface ApiCalendarEventsResponse {
+  ok: boolean;
+  version?: string;
+  events: ApiCalendarEvent[];
+  errors?: string[];
+}

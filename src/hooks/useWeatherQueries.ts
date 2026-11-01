@@ -17,8 +17,10 @@ import {
   getDevFallbackHighlights,
   getDevFallbackDateWeather,
   getDevFallbackDateBattle,
+  getDevFallbackCalendarEvents,
 } from '../api/devFallback';
 import type {
+  ApiCalendarEventsResponse,
   ApiRtNowResponse,
   ApiRtTodayResponse,
   ApiRtForecastResponse,
@@ -53,6 +55,7 @@ export const weatherQueryKeys = {
   dateWeather: (station: string, month: number, day: number) => ['weather', 'stats', 'date-weather', station, month, day] as const,
   dateBattle: (station: string, casesKey: string) => ['weather', 'stats', 'date-battle', station, casesKey] as const,
   highlights: (station: string) => ['weather', 'stats', 'highlights', station] as const,
+  calendarEvents: (from: number, to: number) => ['weather', 'calendar', 'events', from, to] as const,
 };
 
 export function useRtNowQuery(station: string, enabled = true) {
@@ -167,6 +170,23 @@ export function useStatsHighlightsQuery(station: string, enabled = true) {
   return useQuery({
     queryKey: weatherQueryKeys.highlights(station),
     queryFn: () => fetchWeatherApi<ApiStatsHighlightsResponse>(WEATHER_ENDPOINTS.highlights(station), () => getDevFallbackHighlights(station)),
+    enabled,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 특정일(설날·추석·수능·학력고사) 달력. 지점과 무관하고 자주 바뀌지 않아 10분 동안 신선한 것으로 본다.
+ * 카드가 보일 때만(enabled) 부르고, 한 번 받은 범위(from~to)를 화면에서 골라 쓴다.
+ */
+export function useCalendarEventsQuery(from: number, to: number, enabled = true) {
+  return useQuery({
+    queryKey: weatherQueryKeys.calendarEvents(from, to),
+    queryFn: () =>
+      fetchWeatherApi<ApiCalendarEventsResponse>(
+        WEATHER_ENDPOINTS.calendarEvents(from, to),
+        () => getDevFallbackCalendarEvents(from, to),
+      ),
     enabled,
     staleTime: 10 * 60 * 1000,
   });
