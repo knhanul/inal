@@ -20,6 +20,8 @@ export const ALLOWED_READONLY_ROUTES = [
   { path: '/api/stations', ttlSeconds: 1800, category: 'meta' },
   // 특정일(설날·추석·수능·학력고사) 달력 — 공개 읽기 전용. 하루 두어 번 바뀌는 자료라 10분 캐시.
   { path: '/api/calendar/events', ttlSeconds: 600, category: 'stats' },
+  // 특정일 '해마다 실제 날짜' — 그해 실제 시행일 하루의 관측값. 읽기 전용(조회)만.
+  { path: '/api/stats/date-series', ttlSeconds: 600, category: 'stats' },
 ];
 
 export const BLOCKED_PATH_PREFIXES = [
@@ -64,6 +66,9 @@ export const ALLOWED_QUERY_KEYS = new Set([
   'cases',
   'cal',
   'part',
+  // 특정일 '해마다 실제 날짜'(/api/stats/date-series): 종류(kind)와 이름(label). from·to·format 은 위에 이미 있다.
+  'kind',
+  'label',
 ]);
 
 export function matchAllowedRoute(pathname) {

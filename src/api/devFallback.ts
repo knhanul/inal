@@ -2,6 +2,10 @@ import { getStationById, ASOS_STATIONS } from './endpoints';
 import type {
   ApiCalendarEvent,
   ApiCalendarEventsResponse,
+  ApiDateSeriesExtreme,
+  ApiDateSeriesPoint,
+  ApiDateSeriesResponse,
+  ApiDateSeriesStat,
   ApiRtNowResponse,
   ApiRtTodayResponse,
   ApiRtForecastResponse,
@@ -699,4 +703,188 @@ export function getDevFallbackCalendarEvents(from: number, to: number): ApiCalen
       lunarText: null,
     }));
   return { ok: true, version: 'calendar-events.v1', events, errors: [] };
+}
+
+/**
+ * 개발 모드용 특정일 '해마다 실제 날짜' 표본 — 실제 응답(/api/stats/date-series)과 같은 모양만 맞춘 가짜 값.
+ * 화면·콘솔이 비지 않게 하는 용도이므로 값은 실제 관측치가 아니다. 실제 자료는 프록시를 거쳐 온다.
+ */
+export function getDevFallbackDateSeries(
+  stationId: string,
+  kind: string,
+  label: string,
+  from: number,
+  to: number,
+): ApiDateSeriesResponse {
+  const st = getStationById(stationId);
+  const offset = STATION_TEMP_OFFSETS[st.id] ?? 0;
+  const kindLabel = kind === 'csat' ? '대학수학능력시험' : kind === 'hakryeok' ? '학력고사' : kind === 'holiday' ? '명절·기념일' : '직접 추가';
+  const name = kind === 'csat' ? '수능일' : kind === 'hakryeok' ? '학력고사일' : label || '특정일';
+  const toYear = Number.isFinite(to) ? to : new Date().getFullYear();
+  const todayKey = new Date().toISOString().slice(0, 10);
+
+  // 수능은 해마다 11월 셋째 목요일 무렵 — 표본에서는 11월 13~23일 사이를 오가게 한다.
+  const points: ApiDateSeriesPoint[] = [];
+  for (let y = from; y <= toYear; y += 1) {
+    const day = 12 + ((y * 7) % 12);
+    const solarDate = `${y}-11-${String(day).padStart(2, '0')}`;
+    const isFuture = solarDate > todayKey;
+    const avg = round1(8 + ((y * 37) % 90) / 10 - 4 + offset);
+    const max = round1(avg + 4 + ((y * 13) % 30) / 10);
+    const min = round1(avg - 4 - ((y * 17) % 30) / 10);
+    const rain = (y * 11) % 5 === 0 ? round1(((y * 3) % 90) / 10) : 0;
+    points.push({
+      eventId: `dev-fallback-ds-${y}`,
+      kind,
+      label: kind === 'csat' ? `${y + 1}학년도 대학수학능력시험` : label || name,
+      yearLabel: kind === 'csat' ? `${y + 1}학년도` : null,
+      note: y === 2017 ? '포항 지진으로 1주 연기' : null,
+      oneOff: kind !== 'holiday',
+      year: y,
+      solarDate,
+      lunarText: `음력 ${y}년 10월 1일`,
+      dateStatus: isFuture ? 'future' : 'ok',
+      rowPresent: !isFuture,
+      values: {
+        avg: isFuture ? null : avg,
+        max: isFuture ? null : max,
+        min: isFuture ? null : min,
+        range: isFuture ? null : round1(max - min),
+        rain: isFuture ? null : rain,
+        wind: isFuture ? null : 2.1,
+        hum: isFuture ? null : 62,
+        nsnow: isFuture ? null : 0,
+        gust: isFuture ? null : 7.4,
+        sun: isFuture ? null : 5.2,
+      },
+      fieldStatus: { avg: 'ok', max: 'ok', min: 'ok', rain: 'ok' },
+      rainNorm: rain === 0 ? 'blank0' : 'value',
+    });
+  }
+
+  const withData = points.filter((p) => p.dateStatus === 'ok' && p.rowPresent);
+  const nums = (key: 'avg' | 'max' | 'min' | 'rain') =>
+    withData.map((p) => p.values[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+  const stat = (key: 'avg' | 'max' | 'min' | 'rain'): ApiDateSeriesStat => {
+    const vals = nums(key);
+    const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    const minVal = vals.length ? Math.min(...vals) : null;
+    const maxVal = vals.length ? Math.max(...vals) : null;
+    return {
+      n: vals.length,
+      eligible: vals.length,
+      mean: mean === null ? null : round1(mean),
+      min: minVal,
+      max: maxVal,
+      minYears: [],
+      maxYears: [],
+    };
+  };
+  const extreme = (key: 'max' | 'min' | 'rain'): ApiDateSeriesExtreme => {
+    let best: ApiDateSeriesPoint | null = null;
+    for (const p of withData) {
+      const v = p.values[key];
+      if (typeof v !== 'number') continue;
+      const cur = best ? best.values[key] : null;
+      if (best === null || cur === null || (key === 'min' ? v < cur : v > cur)) best = p;
+    }
+    return {
+      field: key,
+      value: best ? best.values[key] ?? null : null,
+      label: best?.label,
+      yearLabel: best?.yearLabel ?? null,
+      solarDate: best?.solarDate ?? '',
+      year: best?.year ?? 0,
+      years: best ? [best.year] : [],
+      tie: false,
+    };
+  };
+  const rainHit = withData.filter((p) => typeof p.values.rain === 'number' && p.values.rain >= 0.1);
+  const r10Points = points.slice(-10);
+  const r10Data = r10Points.filter((p) => p.dateStatus === 'ok' && p.rowPresent);
+  const r10Stat = (key: 'avg' | 'max' | 'min' | 'rain'): ApiDateSeriesStat => {
+    const vals = r10Data.map((p) => p.values[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    return {
+      n: vals.length,
+      eligible: vals.length,
+      mean: vals.length ? round1(vals.reduce((a, b) => a + b, 0) / vals.length) : null,
+      min: vals.length ? Math.min(...vals) : null,
+      max: vals.length ? Math.max(...vals) : null,
+    };
+  };
+  const r10Rain = r10Data.filter((p) => typeof p.values.rain === 'number' && p.values.rain >= 0.1).length;
+
+  return {
+    ok: true,
+    source: '(개발용 표본 — 실제 관측값 아님) 기상청 ASOS 공식 일자료',
+    timezone: 'Asia/Seoul',
+    today: todayKey,
+    station: { station_id: st.id, station_name: st.name, region: st.regionGroup },
+    points,
+    missingYears: [],
+    series: {
+      kind,
+      kindLabel,
+      label: label || null,
+      name,
+      title: `${name} 날씨 — ${from}~${toYear}년`,
+      yearLabelFrom: kind === 'csat' ? `${from + 1}학년도` : null,
+      yearLabelTo: kind === 'csat' ? `${toYear + 1}학년도` : null,
+      yearLabelRange: kind === 'csat' ? `${from + 1}학년도~${toYear + 1}학년도` : null,
+      version: 'dev-fallback.date-series.v1',
+      counts: { points: points.length, withData: withData.length, missing: 0, rain: rainHit.length },
+    },
+    window: {
+      fromYear: from,
+      toYear,
+      label: `${from}~${toYear}년`,
+      points: points.length,
+      dataFrom: from,
+      dataTo: toYear,
+    },
+    summary: {
+      max: stat('max'),
+      min: stat('min'),
+      avg: stat('avg'),
+      rain: stat('rain'),
+      rainCount: {
+        k: rainHit.length,
+        n: withData.length,
+        share: withData.length ? round1((rainHit.length / withData.length) * 100) : 0,
+        hitYears: rainHit.map((p) => p.year),
+      },
+      extremes: { hottest: extreme('max'), coldest: extreme('min'), wettest: extreme('rain') },
+      excluded: points
+        .filter((p) => p.dateStatus !== 'ok')
+        .map((p) => ({
+          year: p.year,
+          yearLabel: p.yearLabel,
+          label: p.label,
+          solarDate: p.solarDate,
+          dateStatus: p.dateStatus,
+          reason: p.dateStatus,
+          reasonText: '아직 관측되지 않음',
+        })),
+      recent10: {
+        fromYear: r10Points[0]?.year ?? toYear,
+        toYear: r10Points[r10Points.length - 1]?.year ?? toYear,
+        label: `최근 10년(${r10Points[0]?.year ?? toYear}~${toYear})`,
+        full10: r10Points.length === 10,
+        points: r10Points.length,
+        max: r10Stat('max'),
+        min: r10Stat('min'),
+        avg: r10Stat('avg'),
+        rain: r10Stat('rain'),
+        rainCount: { k: r10Rain, n: r10Data.length, share: r10Data.length ? round1((r10Rain / r10Data.length) * 100) : 0 },
+      },
+    },
+    policyVersion: 'dev-fallback',
+    calendarVersion: 'dev-fallback',
+    statusText: {
+      ok: '자료 있음',
+      future: '아직 관측되지 않음',
+      missing: '자료 없음',
+    },
+    dataRevision: { daily: 0 },
+  };
 }

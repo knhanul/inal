@@ -548,3 +548,156 @@ export interface ApiCalendarEventsResponse {
   events: ApiCalendarEvent[];
   errors?: string[];
 }
+/**
+ * 특정일 종류 — /api/stats/date-series 의 kind. 대학수학능력시험 / 학력고사 / 명절·기념일 / 직접 추가.
+ * weather.nuni.co.kr 운영 응답 기준.
+ */
+export type ApiDateSeriesKind = 'csat' | 'hakryeok' | 'holiday' | 'custom';
+
+/** 한 점의 관측값(그날 하루). 관측 전(future)이거나 그날 행이 없으면 null 이다 — 0 으로 채우지 않는다. */
+export interface ApiDateSeriesValues {
+  avg: number | null;
+  max: number | null;
+  min: number | null;
+  range?: number | null;
+  rain: number | null;
+  wind?: number | null;
+  hum?: number | null;
+  gust?: number | null;
+  sun?: number | null;
+  nsnow?: number | null;
+}
+
+/**
+ * /api/stats/date-series 의 한 점 = 그해 그 특정일의 실제 양력 날짜 하루.
+ * 수능일처럼 해마다 날짜가 바뀌는 날을 '그날 하루'로 이어 보기 위한 자료다.
+ */
+export interface ApiDateSeriesPoint {
+  eventId: string;
+  kind?: ApiDateSeriesKind | string;
+  /** 예: '2027학년도 대학수학능력시험' */
+  label: string;
+  /** 예: '2027학년도'. 설날·추석처럼 학년도가 없는 날은 null. */
+  yearLabel: string | null;
+  /** 예: '포항 지진으로 1주 연기'. 없으면 null. */
+  note: string | null;
+  oneOff?: boolean;
+  /** 그 점의 양력 날짜의 해 */
+  year: number;
+  /** 그해 실제 양력 날짜 YYYY-MM-DD */
+  solarDate: string;
+  lunarDate?: string | null;
+  /** 예: '음력 2026년 1월 1일'. 없으면 null. */
+  lunarText: string | null;
+  dateStatus: string;
+  rowPresent: boolean;
+  values: ApiDateSeriesValues;
+  fieldStatus?: Record<string, string>;
+  rainNorm?: string;
+}
+
+/** summarize() 결과 — 값이 없는 해는 빼고 센다. */
+export interface ApiDateSeriesStat {
+  n: number;
+  eligible?: number;
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+  minYears?: number[];
+  maxYears?: number[];
+  candidateYears?: number[];
+}
+
+export interface ApiDateSeriesExtreme {
+  field?: string;
+  value: number | null;
+  label?: string;
+  yearLabel: string | null;
+  solarDate: string;
+  year: number;
+  years: number[];
+  tie: boolean;
+}
+
+export interface ApiDateSeriesRecent10 {
+  fromYear: number;
+  toYear: number;
+  label: string;
+  full10?: boolean;
+  points: number;
+  max: ApiDateSeriesStat;
+  min: ApiDateSeriesStat;
+  avg?: ApiDateSeriesStat;
+  rain?: ApiDateSeriesStat;
+  rainCount: { k: number; n: number; share: number };
+}
+
+export interface ApiDateSeriesSummary {
+  max: ApiDateSeriesStat;
+  min: ApiDateSeriesStat;
+  avg: ApiDateSeriesStat;
+  rain?: ApiDateSeriesStat;
+  rainCount: { k: number; n: number; share: number; hitYears: number[] };
+  extremes: {
+    hottest: ApiDateSeriesExtreme;
+    coldest: ApiDateSeriesExtreme;
+    wettest: ApiDateSeriesExtreme;
+  };
+  excluded: Array<{
+    year: number;
+    yearLabel: string | null;
+    label: string;
+    solarDate: string;
+    dateStatus: string;
+    reason: string;
+    reasonText: string;
+  }>;
+  recent10: ApiDateSeriesRecent10;
+}
+
+export interface ApiDateSeriesSeries {
+  kind: ApiDateSeriesKind | string;
+  kindLabel: string;
+  label: string | null;
+  /** 예: '수능일' */
+  name: string;
+  /** 예: '수능일 날씨 — 1994~2026년' */
+  title: string;
+  yearLabelFrom: string | null;
+  yearLabelTo: string | null;
+  yearLabelRange: string | null;
+  version?: string;
+  counts: { points: number; withData: number; missing: number; rain: number };
+}
+
+export interface ApiDateSeriesResponse {
+  ok: boolean;
+  source: string;
+  timezone?: string;
+  today?: string;
+  station: {
+    station_id: string;
+    station_name: string;
+    region?: string;
+    dailyFirst?: string;
+    dailyLast?: string;
+  };
+  points: ApiDateSeriesPoint[];
+  missingYears: number[];
+  series: ApiDateSeriesSeries;
+  window: {
+    fromYear: number;
+    toYear: number;
+    label: string;
+    points: number;
+    dataFrom: number | null;
+    dataTo: number | null;
+  };
+  summary: ApiDateSeriesSummary;
+  policyVersion?: string;
+  calendarVersion?: string;
+  statusText?: Record<string, string>;
+  dataRevision?: { daily?: number; dailyLast?: string };
+  dailyFrom?: string;
+  lunarRange?: { fromYear: number; toYear: number; solarFrom?: string; solarTo?: string };
+}

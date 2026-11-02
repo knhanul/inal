@@ -85,6 +85,9 @@ const REQUIRED_FILES = [
   'src/components/cards/ComparisonCard.tsx',
   'src/components/cards/StoryCard.tsx',
   'src/components/cards/RecordCard.tsx',
+  'src/components/cards/DateSeriesCard.tsx',
+  'src/lib/dateSeries.ts',
+  'scripts/test-date-series.mjs',
   'src/pages/TodayPage.tsx',
   'src/pages/ForecastPage.tsx',
   'src/pages/ComparePage.tsx',
@@ -102,7 +105,7 @@ for (const relPath of REQUIRED_FILES) {
 
 console.log('\n=== [2/4] 읽기 전용 API 프록시 화이트리스트 및 차단 정책 검증 ===');
 
-check('19개 조회 엔드포인트 화이트리스트 등록 확인', () => {
+check('21개 조회 엔드포인트 화이트리스트 등록 확인', () => {
   const expectedRoutes = [
     '/api/rt/now',
     '/api/rt/today',
@@ -123,12 +126,13 @@ check('19개 조회 엔드포인트 화이트리스트 등록 확인', () => {
     '/api/stats/calendar-map',
     '/api/stats/highlights',
     '/api/calendar/events',
+    '/api/stats/date-series',
   ];
   for (const route of expectedRoutes) {
     const res = matchAllowedRoute(route);
     assert.equal(res.allowed, true, `${route} 는 허용되어야 합니다.`);
   }
-  assert.equal(ALLOWED_READONLY_ROUTES.length >= 19, true);
+  assert.equal(ALLOWED_READONLY_ROUTES.length >= 20, true);
 });
 
 check('관리자·수집·인증·DB 변경 API 경로는 403 차단 대상인지 확인', () => {

@@ -18,9 +18,11 @@ import {
   getDevFallbackDateWeather,
   getDevFallbackDateBattle,
   getDevFallbackCalendarEvents,
+  getDevFallbackDateSeries,
 } from '../api/devFallback';
 import type {
   ApiCalendarEventsResponse,
+  ApiDateSeriesResponse,
   ApiRtNowResponse,
   ApiRtTodayResponse,
   ApiRtForecastResponse,
@@ -56,6 +58,8 @@ export const weatherQueryKeys = {
   dateBattle: (station: string, casesKey: string) => ['weather', 'stats', 'date-battle', station, casesKey] as const,
   highlights: (station: string) => ['weather', 'stats', 'highlights', station] as const,
   calendarEvents: (from: number, to: number) => ['weather', 'calendar', 'events', from, to] as const,
+  dateSeries: (station: string, kind: string, label: string, from: number, to: number) =>
+    ['weather', 'stats', 'date-series', station, kind, label, from, to] as const,
 };
 
 export function useRtNowQuery(station: string, enabled = true) {
@@ -188,6 +192,31 @@ export function useCalendarEventsQuery(from: number, to: number, enabled = true)
         () => getDevFallbackCalendarEvents(from, to),
       ),
     enabled,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 특정일(수능·학력고사·설날·추석) '해마다 실제 날짜' — 그해 실제 시행일의 날씨를 해마다 한 점으로 잇는다.
+ * '날짜로 보는 날씨'처럼 월·일을 고정하지 않고, 서버가 달력으로 푼 그해 양력 날짜를 그대로 쓴다.
+ * 달력·관측 자료라 하루 두어 번만 바뀌므로 10분 동안 신선한 것으로 본다.
+ */
+export function useStatsDateSeriesQuery(
+  station: string,
+  kind: string,
+  label: string,
+  from: number,
+  enabled = true,
+  to: number = new Date().getFullYear(),
+) {
+  return useQuery({
+    queryKey: weatherQueryKeys.dateSeries(station, kind, label, from, to),
+    queryFn: () =>
+      fetchWeatherApi<ApiDateSeriesResponse>(
+        WEATHER_ENDPOINTS.dateSeries(station, kind, label, from, to),
+        () => getDevFallbackDateSeries(station, kind, label, from, to),
+      ),
+    enabled: enabled && Boolean(kind),
     staleTime: 10 * 60 * 1000,
   });
 }

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Swords, CalendarHeart, CalendarDays, HelpCircle, Plus, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Swords, CalendarHeart, CalendarDays, ChevronRight, HelpCircle, Plus, X } from 'lucide-react';
 import type { BottomSheetDetailPayload, StoryCardViewModel } from '../types/viewmodel';
 import type { ApiCalendarEvent } from '../types/api';
 import { getStationById } from '../api/endpoints';
@@ -11,12 +11,15 @@ import {
   useCalendarEventsQuery,
 } from '../hooks/useWeatherQueries';
 import { eventsOfYear, sameMonthDayEvents, shortEventLabel } from '../lib/calendarEvents';
+import { resolveSeriesTargetFromSearch, seriesTargetForEvent, seriesTargetKey } from '../lib/dateSeries';
+import type { SeriesTarget } from '../lib/dateSeries';
 import { formatTemp, formatRainfall, formatWindSpeed, formatPercent, isValidNumber } from '../api/mappers';
 import { CardCarousel } from '../components/common/CardCarousel';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { ErrorState } from '../components/common/ErrorState';
 import { StoryCard } from '../components/cards/StoryCard';
 import { ComparisonCard } from '../components/cards/ComparisonCard';
+import { DateSeriesCard } from '../components/cards/DateSeriesCard';
 
 interface StoryPageProps {
   stationId: string;
@@ -67,22 +70,42 @@ function describeMonthDayHits(
   return { headline, detail };
 }
 
+/**
+ * '역대 특정일' 줄 옆 버튼 문구. 예: "수능일 날씨를 해마다 실제 날짜로 보기".
+ * 시험은 '수능일·학력고사일', 명절은 그 이름을 그대로 쓴다.
+ */
+function seriesCtaText(event: ApiCalendarEvent): string {
+  if (event.kind === 'csat') return '수능일 날씨를 해마다 실제 날짜로 보기';
+  if (event.kind === 'hakryeok') return '학력고사일 날씨를 해마다 실제 날짜로 보기';
+  const name = (event.label || '특정일').trim();
+  return `${name} 날씨를 해마다 실제 날짜로 보기`;
+}
+
 export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail }) => {
   const station = getStationById(stationId);
   const [selectedQuestionIdx, setSelectedQuestionIdx] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState(10);
   const [selectedDay, setSelectedDay] = useState(22);
   // '날짜로 보는 날씨' 카드가 보일 때만 특정일 달력을 부른다(캐러셀 1번째).
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  // 주소에 특정일(?series=…)이 실려 있으면 그 카드부터 열리므로 처음부터 1로 둔다.
+  const [activeCardIndex, setActiveCardIndex] = useState(() =>
+    typeof window !== 'undefined' && resolveSeriesTargetFromSearch(window.location.search) ? 1 : 0,
+  );
   // null 이면 '올해'(이벤트가 없으면 가장 최근 해)를 쓴다.
   const [calendarYear, setCalendarYear] = useState<number | null>(null);
+  // null 이면 기존 '월·일 고정' 화면. 값이 있으면 그 특정일의 '해마다 실제 날짜' 화면으로 바뀐다.
+  // 새로고침·뒤로 가기에도 살아남도록 주소(?series=csat&seriesLabel=추석)와 맞춰 둔다.
+  const [seriesTarget, setSeriesTarget] = useState<SeriesTarget | null>(() =>
+    typeof window === 'undefined' ? null : resolveSeriesTargetFromSearch(window.location.search),
+  );
   const [battleCases, setBattleCases] = useState<Array<{ id: string; month: number; day: number }>>([
     { id: 'A', month: 10, day: 22 },
     { id: 'B', month: 5, day: 5 },
   ]);
 
   const highlightsQuery = useStatsHighlightsQuery(stationId, true);
-  const dateWeatherQuery = useStatsDateWeatherQuery(stationId, selectedMonth, selectedDay, true);
+  // 특정일 모드에서는 월·일 고정 조회를 쓰지 않으므로 부르지 않는다.
+  const dateWeatherQuery = useStatsDateWeatherQuery(stationId, selectedMonth, selectedDay, !seriesTarget);
   const battleQuery = useStatsDateBattleQuery(stationId, battleCases, true);
   const recordsQuery = useRtRecordsQuery(stationId, true);
 
@@ -126,6 +149,55 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
       return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: ids[i] }));
     });
   };
+
+  // ---- 특정일 '해마다 실제 날짜' 모드 -------------------------------------------------
+  // 왜: '날짜로 보는 날씨'는 고른 월·일을 해마다 고정한다. 수능일·학력고사일은 해마다 양력 날짜가 바뀌므로
+  // (2025학년도 11/14, 2026학년도 11/13 …) 고정 월·일로는 그해 실제 시행일의 날씨가 나오지 않는다.
+  // 이 모드는 서버 달력이 푼 '그해 실제 양력 날짜'를 따라가며 하루씩 값을 받는다(/api/stats/date-series).
+  const seriesPushedRef = React.useRef(false);
+
+  const pushSeriesUrl = useCallback((target: SeriesTarget | null) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('series');
+    url.searchParams.delete('seriesLabel');
+    if (target) {
+      url.searchParams.set('series', target.kind);
+      if (target.label) url.searchParams.set('seriesLabel', target.label);
+    }
+    window.history.pushState({ ...(window.history.state || {}), inalSeries: true }, '', url.toString());
+    seriesPushedRef.current = true;
+  }, []);
+
+  const enterSeriesMode = useCallback(
+    (target: SeriesTarget) => {
+      pushSeriesUrl(target);
+      setSeriesTarget(target);
+      // 카드가 특정일 모드로 바뀌어도 스크롤 위치는 유지한다(같은 자리에서 내용만 바뀐다).
+    },
+    [pushSeriesUrl],
+  );
+
+  const exitSeriesMode = useCallback(() => {
+    // 우리가 쌓은 항목이면 뒤로 가서 지운다(주소·뒤로 가기 모두 자연스럽게). 아니면 새 항목으로 되돌린다.
+    if (seriesPushedRef.current) {
+      seriesPushedRef.current = false;
+      window.history.back();
+      setSeriesTarget(null);
+      return;
+    }
+    pushSeriesUrl(null);
+    seriesPushedRef.current = false;
+    setSeriesTarget(null);
+  }, [pushSeriesUrl]);
+
+  // 뒤로 가기·앞으로 가기로 주소가 바뀌면 화면도 따라간다(App 의 popstate 처리와 별개로 이 카드만 맞춘다).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPop = () => setSeriesTarget(resolveSeriesTargetFromSearch(window.location.search));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const renderQuestionsCard = () => {
     if (highlightsQuery.isLoading) return <LoadingSkeleton label="관측 통계로 답하는 질문 카드를 불러오는 중입니다…" />;
@@ -203,7 +275,22 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
     );
   };
 
+  // 특정일 모드면 그 카드가 기존 '날짜로 보는 날씨' 카드 자리를 대신한다.
   const renderDateWeatherCard = () => {
+    if (seriesTarget) {
+      return (
+        <DateSeriesCard
+          key={seriesTargetKey(seriesTarget)}
+          stationId={stationId}
+          target={seriesTarget}
+          onBack={exitSeriesMode}
+        />
+      );
+    }
+    return renderMonthDayCard();
+  };
+
+  const renderMonthDayCard = () => {
     if (dateWeatherQuery.isLoading) return <LoadingSkeleton label={`${selectedMonth}월 ${selectedDay}일의 과거 날씨를 찾는 중입니다…`} />;
     if (dateWeatherQuery.isError || !dateWeatherQuery.data) return <ErrorState title="날짜별 날씨를 불러오지 못했어요" onRetry={() => dateWeatherQuery.refetch()} />;
 
@@ -309,6 +396,17 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
               {sameDayLine.detail && (
                 <p className="mt-0.5 break-keep text-[10.5px] font-medium leading-snug text-inal-textMuted">{sameDayLine.detail}</p>
               )}
+              {sameDayHits[0] && (
+                <button
+                  type="button"
+                  onClick={() => enterSeriesMode(seriesTargetForEvent(sameDayHits[0].event))}
+                  data-testid="series-cta-sameday"
+                  className="mt-1.5 inline-flex max-w-full items-center gap-0.5 rounded-lg bg-white/80 px-2 py-1.5 text-[10.5px] font-bold text-inal-accent"
+                >
+                  <span className="break-keep text-left">{seriesCtaText(sameDayHits[0].event)}</span>
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                </button>
+              )}
             </div>
           )}
           <div className="space-y-1.5 pt-1">
@@ -360,10 +458,14 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
                     key={`${e.id}-${e.solarDate}`}
                     type="button"
                     onClick={() => {
+                      // 그날 하루로만 이동하지 않고, 그 특정일이 해마다 며칠이었는지 이어 보는 모드로 넘어간다.
+                      // (돌아왔을 때 같은 날짜가 보이도록 월·일도 함께 맞춰 둔다.)
                       setSelectedMonth(month);
                       setSelectedDay(day);
+                      enterSeriesMode(seriesTargetForEvent(e));
                     }}
-                    aria-label={`${month}월 ${day}일 날씨 보기 — ${e.label}`}
+                    data-testid={`series-chip-${e.kind}`}
+                    aria-label={`${month}월 ${day}일 · ${seriesCtaText(e)}`}
                     aria-pressed={isPicked}
                     title={`${e.label}${e.yearLabel ? ` · ${e.yearLabel}` : ''}${e.lunarText ? ` · ${e.lunarText}` : ''}`}
                     className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition ${
@@ -382,7 +484,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
             <p className="text-[11px] font-medium text-inal-textMuted">이 해에 등록된 특정일이 없습니다.</p>
           )}
           <p className="break-keep text-[10px] leading-snug text-inal-textSoft">
-            특정일은 달력 정보이며 위 날씨 값과 무관합니다. 눌러서 그 날짜의 날씨를 볼 수 있어요.
+            특정일은 달력 정보이며 위 날씨 값과 무관합니다. 누르면 그 특정일이 해마다 실제로 며칠이었는지 날씨와 함께 이어서 볼 수 있어요.
           </p>
         </div>
       </ComparisonCard>
@@ -677,7 +779,13 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
 
   return (
     <div className="space-y-3">
-      <CardCarousel cardLabels={STORY_TAB_LABELS} ariaLabel="날씨 이야기 카드 목록" onIndexChange={setActiveCardIndex}>
+      <CardCarousel
+        cardLabels={STORY_TAB_LABELS}
+        ariaLabel="날씨 이야기 카드 목록"
+        // 주소에 특정일(?series=…)이 실려 있으면 그 카드(2번째)부터 연다 — 새로고침·공유 링크가 같은 화면으로 이어진다.
+        initialIndex={seriesTarget ? 1 : 0}
+        onIndexChange={setActiveCardIndex}
+      >
         {/* 배열로 넘기면 React 가 key 를 요구해 콘솔 경고가 난다 — 카드마다 key 를 붙인 조각으로 감싼다(화면에는 영향 없음). */}
         {[
           <React.Fragment key="story-questions">{renderQuestionsCard()}</React.Fragment>,

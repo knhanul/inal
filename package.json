@@ -16,7 +16,8 @@
     "start": "NODE_ENV=production node server/proxy.mjs",
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify.mjs",
-    "test:calendar": "node scripts/test-calendar-events.mjs"
+    "test:calendar": "node scripts/test-calendar-events.mjs",
+    "test:series": "node scripts/test-date-series.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.2",

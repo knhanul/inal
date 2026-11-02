@@ -48,6 +48,20 @@ export const WEATHER_ENDPOINTS = {
     return `${API_BASE}/stats/date-battle?stn=${encodeURIComponent(station)}&cases=${encodeURIComponent(cases)}&period=recent10&part=summary`;
   },
   highlights: (station: string) => `${API_BASE}/stats/highlights?station=${encodeURIComponent(station)}`,
+  /**
+   * 특정일 '해마다 실제 날짜' — 수능일·학력고사일·설날·추석이 해마다 며칠이었는지 그날 하루의 날씨.
+   * label 은 명절·직접 추가처럼 같은 kind 안에 이름이 여럿일 때만 쓴다(수능·학력고사는 비운다).
+   */
+  dateSeries: (station: string, kind: string, label: string, from: number, to: number) => {
+    const q = new URLSearchParams({ stn: String(station), kind: String(kind) });
+    if (label) q.set('label', label);
+    q.set('from', String(from));
+    q.set('to', String(to));
+    return `${API_BASE}/stats/date-series?${q.toString()}`;
+  },
+  /** 같은 조회의 CSV 내려받기 주소(형식만 csv 로 바꾼다). */
+  dateSeriesCsv: (station: string, kind: string, label: string, from: number, to: number) =>
+    `${WEATHER_ENDPOINTS.dateSeries(station, kind, label, from, to)}&format=csv`,
   /** 특정일(설날·추석·수능 등). 지점과 무관한 달력 자료라 station 파라미터가 없다. */
   calendarEvents: (from: number, to: number) => `${API_BASE}/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
 } as const;
