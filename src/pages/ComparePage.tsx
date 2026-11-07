@@ -183,7 +183,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
         rows={recentRows.map((r) => ({
           id: String(r.year),
           title: `${r.year}년`,
-          subtitle: `관측 ${r.obs ?? 31}/${r.days ?? 31}일`,
+          subtitle: r.obs != null && r.days != null && r.obs < r.days ? '일부 날짜 자료 없음' : undefined,
           primaryText: formatTemp(r.value),
         }))}
         detail={{

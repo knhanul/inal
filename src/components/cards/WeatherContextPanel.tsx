@@ -17,6 +17,7 @@ export const WeatherContextPanel: React.FC<{
             mode,
             station: stationId,
             compact: true,
+            showEvidence: false,
           });
       })
       .catch(() => {

@@ -167,9 +167,31 @@ function seasonHtml(d) {
       .map((p) => [p.date, fmt(p.value), p.adjacent.days === 14 ? sg(p.diff) : "주변 자료 부족"]),
   )}<p class="wc-note">${E(d.policy)}</p><p class="wc-note">보유 ${E(d.available.first || "없음")} ~ ${E(d.available.last || "없음")}</p><p class="wc-note">${E(d.calendar.method)}</p>${d.calendar.links.map((a, i) => `<a href="${E(a)}" target="_blank" rel="noopener noreferrer">날짜 계산 출처 ${i + 1}</a>`).join(" · ")}</details>`;
 }
+// Mobile main-information view: API evidence stays intact, but is not put in the DOM.
+// Detailed rendering remains the default for consumers that opt into evidence.
+function mainRecentHtml(d) {
+  const time = d.basis?.time || d.latestTemperatureTime ||
+    (d.today && Number.isInteger(d.hour) ? `${d.today} ${String(d.hour).padStart(2, "0")}:00` : "");
+  const place = `<p>${E(d.station.name)}${time ? ` · ${E(time.replace(/(\d{2}:\d{2}):\d{2}$/, "$1"))} KST` : ""}</p>`;
+  if (!d.available) return `${place}<p class="wc-lead">오늘 비교할 날씨 자료가 아직 없어요.</p>`;
+  const headline = d.diff === null ? "어제 같은 시각과 비교할 자료가 없어요"
+    : Math.abs(d.diff) < 0.05 ? "어제 같은 시각과 기온이 같아요"
+    : `어제 같은 시각보다 ${fmt(Math.abs(d.diff))} ${d.diff > 0 ? "높아요" : "낮아요"}`;
+  const recent = d.recent7;
+  return `${place}<p class="wc-lead">${E(headline)}</p><p>오늘 ${fmt(d.value)} / 어제 ${fmt(d.previous)}</p>${recent.computed === false || !Number.isFinite(recent.mean) ? '<p>최근 7일 비교 자료가 없어요.</p>' : `<p>최근 7일 같은 시각 평균 ${fmt(recent.mean)} · 오늘과 ${sg(recent.diff)}</p>${recent.days < 7 ? '<p class="wc-note">일부 날짜 자료가 없어 있는 날만 비교했어요.</p>' : ''}`}${d.extras.map(x => `<p>${E(x.label)} 어제보다 ${sg(x.diff, x.unit)}</p>`).join("")}`;
+}
+function mainBattleHtml(d) {
+  const partial = d.window && d.rows.some(r => r.samples > 0 && r.samples < d.window.expected);
+  return `<p>${E(d.station.name)} · 기준 ${E(d.date1)} / 상대 ${E(d.date2)}${d.window ? `의 과거 평균${d.window.expected ? ` (${d.window.fromYear}~${d.window.toYear}년)` : ""}` : ""}</p><p>${d.kind === "같은 정시 관측" ? `${E(d.hour ?? "–")}시 기온·바람 / 직전 1시간 강수` : "하루 평균 기온·바람 / 하루 강수량"}</p>${d.rows.map(r => `<div class="wc-row"><b>${E(r.label)}</b><p>기준 ${fmt(r.a, r.unit)} / 상대 ${fmt(r.b, r.unit)}</p><strong>${E(r.reason)}</strong></div>`).join("")}${partial ? '<p class="wc-note">일부 과거 자료가 없어 있는 해만 비교했어요.</p>' : ''}<p class="wc-note">기준 ${d.wins.A}승 / 상대 ${d.wins.B}승 · 무승부 ${d.wins.draw} · 비교 불가 ${d.wins.unavailable}</p>`;
+}
+function mainSeasonHtml(d) {
+  const s = d.selected, h = d.history;
+  const partial = [s.adjacent, s.before, s.after, s.summer, s.firstFreeze, s.laterCold, s.winter].some(v => v && v.days < v.expected);
+  return `<h3>${E(d.question)}</h3><p class="wc-lead">${E(d.name)} ${E(s.date)} · ${E(d.station.name)}</p><p>${d.thisYear ? "올해" : "선택한 해"} 일평균 ${fmt(s.value)} / 앞뒤 7일 평균 ${fmt(s.adjacent.mean)}</p><p>주변보다 ${sg(s.diff)}</p><p>직전 7일 평균 ${fmt(s.before.mean)} → 이후 7일 평균 ${fmt(s.after.mean)} (변화 ${sg(s.change)})</p>${s.summer ? `<p>그해 여름 평균 ${fmt(s.summer.mean)} · 복날과 ${sg(s.summer.diff)}</p>` : ""}${s.firstFreeze ? `<p>확인된 첫 영하 날: ${E(s.firstFreeze.date || (s.firstFreeze.days ? "아직 없어요" : "자료 없음"))}</p>` : ""}${s.laterCold ? `<p>입춘 다음 30일: 영하 ${s.laterCold.daysBelowZero === null ? "일수 자료 없음" : `${s.laterCold.daysBelowZero}일`}</p>` : ""}${s.winter ? `<p>동지 최저 ${fmt(s.winter.value)} / 겨울 최저 ${fmt(s.winter.min)} (${s.winter.dates.map(E).join(" · ") || "자료 없음"})</p>` : ""}${partial ? '<p class="wc-note">아직 없는 날짜 자료가 있어 잠정 비교예요.</p>' : ""}<h3>예년에는 어땠을까?</h3><p>${h.years > 0 && Number.isFinite(h.meanDiff) ? `여러 해의 주변 대비 평균 차이 ${sg(h.meanDiff)}` : "예년 비교 자료가 없어요."}</p>`;
+}
 export function mountWeatherContext(
   root,
-  { mode = "today", station = "108", compact = false } = {},
+  { mode = "today", station = "108", compact = false, showEvidence = true } = {},
 ) {
   style();
   let stopped = false,
@@ -191,7 +213,7 @@ export function mountWeatherContext(
   root.innerHTML = `<h2>${{ today: "어제와 최근 날씨에 비하면", battle: "내 기준으로 날씨 배틀", season: "절기·복날 날씨 이야기" }[mode]}</h2>${
     mode === "today"
       ? ""
-      : `<form class="wc-form"><div class="wc-controls"><label>관측소<select name="station"><option value="${E(station)}">${E(station)}</option></select></label>${mode === "battle" ? `<label>기준 날짜<input type="date" name="date1" value="${date}" min="1970-01-01" max="${date}" required></label><label>비교 상대<select name="opponent"><option value="yesterday">어제 (기준일 전날)</option><option value="week">지난주 같은 요일</option><option value="year">작년 같은 날</option><option value="custom">직접 고른 날짜</option></select></label><label class="wc-custom" hidden>상대 날짜<input type="date" name="date2" min="1970-01-01" max="${date}" value="${date}"></label><label>비교 기간<select name="period"><option value="exact">그날 실제 관측</option><option value="recent5">최근 5년 같은 월·일</option><option value="recent10">최근 10년 같은 월·일</option><option value="all">보유 전체 같은 월·일</option></select></label>` : `<label>절기·복날<select name="name">${terms.map((t) => `<option${t === defaultTerm ? " selected" : ""}>${E(t)}</option>`).join("")}</select></label><label>연도<input name="year" type="number" min="1970" max="${year}" value="${year}" required></label>`}</div>${
+      : `<form class="wc-form"><div class="wc-controls"><label>${showEvidence ? "관측소" : "지역"}<select name="station"><option value="${E(station)}">${showEvidence ? E(station) : "지역 불러오는 중"}</option></select></label>${mode === "battle" ? `<label>기준 날짜<input type="date" name="date1" value="${date}" min="1970-01-01" max="${date}" required></label><label>비교 상대<select name="opponent"><option value="yesterday">어제 (기준일 전날)</option><option value="week">지난주 같은 요일</option><option value="year">작년 같은 날</option><option value="custom">직접 고른 날짜</option></select></label><label class="wc-custom" hidden>상대 날짜<input type="date" name="date2" min="1970-01-01" max="${date}" value="${date}"></label><label>비교 기간<select name="period"><option value="exact">그날 실제 관측</option><option value="recent5">최근 5년 같은 월·일</option><option value="recent10">최근 10년 같은 월·일</option><option value="all">보유 전체 같은 월·일</option></select></label>` : `<label>절기·복날<select name="name">${terms.map((t) => `<option${t === defaultTerm ? " selected" : ""}>${E(t)}</option>`).join("")}</select></label><label>연도<input name="year" type="number" min="1970" max="${year}" value="${year}" required></label>`}</div>${
           mode === "battle"
             ? `<fieldset><legend>무엇이 이기는 날인가요? (복수 선택)</legend><div class="wc-criteria">${Object.entries(
                 labels,
@@ -234,7 +256,9 @@ export function mountWeatherContext(
       const d = await get(`/api/stats/context-${mode}?${q}`, signal);
       if (stopped || seq !== request) return;
       out.innerHTML =
-        mode === "today" ? recentHtml(d) : mode === "battle" ? battleHtml(d) : seasonHtml(d);
+        showEvidence
+          ? (mode === "today" ? recentHtml(d) : mode === "battle" ? battleHtml(d) : seasonHtml(d))
+          : (mode === "today" ? mainRecentHtml(d) : mode === "battle" ? mainBattleHtml(d) : mainSeasonHtml(d));
       if (mode === "battle") {
         if (initializingBattle) form.elements.date1.value = d.date1;
         const last = form.querySelector(".wc-last");
@@ -253,7 +277,7 @@ export function mountWeatherContext(
         const from = d.available.first?.slice(0, 4),
           to = d.available.last?.slice(0, 4);
         const all = form.querySelector("[name=period] option[value=all]");
-        all.textContent = `보유 전체${from && to ? ` (${from}~${to})` : ""} 같은 월·일`; // No invented coverage.
+        all.textContent = showEvidence ? `보유 전체${from && to ? ` (${from}~${to})` : ""} 같은 월·일` : "전체 기간 같은 월·일"; // No invented coverage.
       }
     } catch (e) {
       if (stopped || seq !== request || e.name === "AbortError") return;

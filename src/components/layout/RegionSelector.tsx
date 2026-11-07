@@ -60,7 +60,7 @@ export const RegionSelector: React.FC<RegionSelectorProps> = ({
           }
         }
         setGpsStatus(
-          `현재 위치에서 가장 가까운 '${nearest.name}(${nearest.id})' 관측소(약 ${minKm}km 거리)로 설정했습니다.`
+          `현재 위치에서 가장 가까운 '${nearest.name}' 지역(약 ${minKm}km 거리)로 설정했습니다.`
         );
         onSelectStation(nearest.id);
       },
@@ -90,7 +90,7 @@ export const RegionSelector: React.FC<RegionSelectorProps> = ({
               관측지점(지역) 선택
             </h2>
             <p className="text-[11px] text-inal-textMuted">
-              기상청 ASOS 장기 관측(1990년~)이 검증된 공식 지점 목록입니다.
+              날씨를 확인할 지역을 골라 주세요.
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="지역 선택 닫기" className="touch-target -mr-2 inline-flex items-center justify-center rounded-full text-inal-textMuted">
@@ -180,7 +180,7 @@ export const RegionSelector: React.FC<RegionSelectorProps> = ({
                         <span className="text-[10px] text-inal-textSoft">({st.id})</span>
                       </div>
                       <span className="mt-0.5 block text-[11px] text-inal-textMuted">
-                        {st.regionGroup} · 격자({st.gridNx},{st.gridNy})
+                        {st.regionGroup}
                       </span>
                     </div>
                     <div className="text-right">

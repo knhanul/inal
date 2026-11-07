@@ -84,16 +84,7 @@ export const RecordCard: React.FC<RecordCardProps> = ({
         </div>
       )}
 
-      {detail && onOpenDetail && (
-        <button
-          type="button"
-          onClick={() => onOpenDetail(detail)}
-          className="touch-target mt-3.5 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle"
-        >
-          <span>자세히 보기</span>
-          <ChevronRight className="h-4 w-4 text-inal-textMuted" />
-        </button>
-      )}
+
     </article>
   );
 };

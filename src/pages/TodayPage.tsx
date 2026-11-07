@@ -234,7 +234,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
           });
 
     if (matches.length === 0) {
-      return <EmptyState title="닮은 과거 날씨를 아직 찾지 못했어요" description="충분한 시간별 관측 표본이 모이면 유사한 기온 흐름을 보인 과거 날짜를 안내합니다." />;
+      return <EmptyState title="닮은 과거 날씨를 아직 찾지 못했어요" description="비슷한 날씨를 찾을 수 있으면 알려 드릴게요." />;
     }
 
     return (

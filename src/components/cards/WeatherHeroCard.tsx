@@ -60,23 +60,9 @@ export const WeatherHeroCard: React.FC<WeatherHeroCardProps> = ({ vm, onOpenDeta
 
       <div className="rounded-2xl bg-inal-accentSoft/65 p-3.5">
         <p className="text-sm font-bold leading-snug text-inal-text">{vm.anomalyHeadline}</p>
-        <InfoTipAuto text={vm.anomalySubline} max={28} label="비교 기준" className="mt-0.5" />
+        {isValidNumber(dist.mean) && <p className="mt-0.5 text-xs text-inal-textMuted">평소 같은 시각 평균 {formatTemp(dist.mean)}</p>}
 
-        {isValidNumber(dist.p10) && isValidNumber(dist.p90) && (
-          <div className="mt-2.5">
-            <div className="relative h-2 w-full rounded-full bg-white/90 overflow-hidden">
-              <div className="absolute top-0 bottom-0 rounded-full bg-amber-300/75" style={{ left: '15%', width: '70%' }} />
-              <div
-                className="absolute top-0 bottom-0 w-2 -ml-1 rounded-full bg-inal-accent"
-                style={{ left: `${Math.min(95, Math.max(5, dist.percentile ?? 50))}%` }}
-              />
-            </div>
-            <div className="mt-1 flex items-center justify-between text-[10px] tabular-nums text-inal-textMuted">
-              <span>보통 범위(10~90%) {formatTemp(dist.p10)}~{formatTemp(dist.p90)}</span>
-              <span>평균 {formatTemp(dist.mean)}</span>
-            </div>
-          </div>
-        )}
+
       </div>
 
       <div className="mt-3.5 grid grid-cols-3 gap-2">
@@ -85,14 +71,7 @@ export const WeatherHeroCard: React.FC<WeatherHeroCardProps> = ({ vm, onOpenDeta
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => onOpenDetail(vm.detail)}
-        className="touch-target mt-3.5 flex w-full items-center justify-between rounded-xl border border-inal-border bg-inal-surfaceSubtle/50 px-3.5 py-2.5 text-xs font-semibold text-inal-text transition hover:bg-inal-surfaceSubtle active:scale-[0.99]"
-      >
-        <span>자세히 보기</span>
-        <ChevronRight className="h-4 w-4 text-inal-textMuted" />
-      </button>
+
     </article>
   );
 };

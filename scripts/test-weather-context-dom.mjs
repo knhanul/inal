@@ -267,3 +267,74 @@ test("today identifies same-grid live source, separate ASOS extrema and versione
   stop();
   dom.window.close();
 });
+
+
+const mobileToday = {
+  ok: true, station: { name: "서울" }, available: true,
+  source: "기상청 초단기실황 · 동일 격자 비교", grid: { nx: 60, ny: 127, note: "기술 격자" },
+  basis: { time: "2026-11-08 08:00:00" }, value: 4.4, previous: 0.9, diff: 3.5,
+  recent7: { mean: 7, days: 7, computed: true, diff: -2.6 }, extras: [],
+  policy: "계산 정책", thresholds: "서비스 기준", series: [], recentDays: [],
+};
+const noEvidence = root => {
+  assert.equal(root.querySelector("details, table, svg, .wc-result a"), null);
+  assert.doesNotMatch(root.textContent, /기상청|ASOS|격자|표본|\d\/7일|근거|계산 정책|서비스 기준|무승부 기준|관측 \d/);
+};
+test("inal today renders core values/time only, not even hidden evidence DOM", async () => {
+  const { root, dom, requests } = setup(() => mobileToday);
+  const stop = mountWeatherContext(root, { mode: "today", station: "201", showEvidence: false });
+  await ready(root); noEvidence(root);
+  assert.match(root.textContent, /서울 · 2026-11-08 08:00 KST/);
+  assert.match(root.textContent, /오늘 4.4℃ \/ 어제 0.9℃/);
+  assert.match(root.textContent, /최근 7일 같은 시각 평균 7.0℃ · 오늘과 -2.6℃/);
+  assert.match(root.textContent, /3.5℃ 높아요/);
+  assert.match(requests[0], /basis=grid-v1/);
+  stop(); dom.window.close();
+});
+test("inal partial and missing today preserve honest caveat without sample counters or invented zero", async () => {
+  for (const [station, data, expected] of [
+    ["202", { ...mobileToday, previous: null, diff: null, recent7: { ...mobileToday.recent7, days: 6 } }, /일부 날짜 자료가 없어/],
+    ["203", { ...mobileToday, available: false, value: null, previous: null, diff: null, recent7: { computed: false, days: null, mean: null } }, /자료가 아직 없어요/],
+  ]) {
+    const { root, dom } = setup(() => data);
+    const stop = mountWeatherContext(root, { mode: "today", station, showEvidence: false });
+    await ready(root); noEvidence(root); assert.match(root.textContent, expected);
+    assert.doesNotMatch(root.textContent, /0\.0℃|0\/7|6\/7/);
+    stop(); dom.window.close();
+  }
+});
+test("inal battle keeps controls, both numbers and win/draw/unavailable reasons; hides thresholds and sample coverage", async () => {
+  const data = { ...battle, window: { fromYear: 2020, toYear: 2025, expected: 6 }, rows: [
+    { ...battle.rows[0], samples: 5 },
+    { label: "비가 적은 날", a: 0, b: 0.1, unit: "mm", winner: "draw", reason: "무승부 — 차이가 작아요", samples: 6 },
+    { label: "바람이 약한 날", a: null, b: null, unit: "m/s", winner: "unavailable", reason: "비교할 자료가 없어요", samples: 0 },
+  ], wins: { A: 1, B: 0, draw: 1, unavailable: 1 } };
+  const { root, dom } = setup(() => data);
+  const stop = mountWeatherContext(root, { mode: "battle", station: "301", showEvidence: false });
+  await ready(root); noEvidence(root);
+  assert.match(root.textContent, /기준 6.9℃ \/ 상대 14.0℃/);
+  assert.match(root.textContent, /기준 날 승.*7.1℃/);
+  assert.match(root.textContent, /무승부 — 차이가 작아요/);
+  assert.match(root.textContent, /비교할 자료가 없어요/);
+  assert.match(root.textContent, /일부 과거 자료가 없어/);
+  for (const name of ["opponent", "criteria", "period", "date1"]) assert.ok(root.querySelector(`[name=${name}]`));
+  assert.equal(root.querySelector('[name=period] option[value=all]').textContent, "전체 기간 같은 월·일");
+  stop(); dom.window.close();
+});
+test("inal seasonal result separates selected year and history, keeps controls, escapes text and partial/no-data caveats", async () => {
+  const sample = { mean: 10, days: 7, expected: 7 };
+  const data = { ok: true, name: "입춘", question: "입춘이면 따뜻해질까?", station: { name: "<img src=x>" },
+    selected: { date: "2025-02-03", value: 12, adjacent: { ...sample, expected: 14 }, before: sample, after: sample,
+      diff: 2, change: 0, laterCold: { days: 0, expected: 30, daysBelowZero: null } },
+    history: { years: 3, meanDiff: 0.3 }, calendar: { method: "날짜 계산 근거", links: ["https://example.test"] },
+    points: [], available: {}, policy: "계산 정책" };
+  const { root, dom } = setup(() => data);
+  const stop = mountWeatherContext(root, { mode: "season", station: "401", showEvidence: false });
+  await ready(root); noEvidence(root);
+  assert.match(root.textContent, /2025-02-03/); assert.match(root.textContent, /선택한 해 일평균 12.0℃/);
+  assert.match(root.textContent, /여러 해의 주변 대비 평균 차이 \+0.3℃/);
+  assert.match(root.textContent, /잠정 비교/); assert.match(root.textContent, /영하 일수 자료 없음/);
+  assert.doesNotMatch(root.textContent, /영하 0일|3개 해/); assert.equal(root.querySelector("img"), null);
+  assert.ok(root.querySelector('[name=year]')); assert.ok(root.querySelector('[name=name]'));
+  stop(); dom.window.close();
+});

@@ -238,7 +238,7 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
       title: currentCard.title,
       highlightValue: `${currentCard.value ?? '-'}${currentCard.unit || ''}`,
       summary: currentCard.description,
-      tags: ['1990년부터의관측', '통계문답', station.name],
+      tags: [station.name],
       provenance: { kind: 'stats', sourceName: raw.source || '기상청 ASOS 관측 (1990~2025)', referenceTime: raw.asOf || '최근 완료 연도 기준' },
       detail: {
         id: `story-q-${currentCard.id}`,

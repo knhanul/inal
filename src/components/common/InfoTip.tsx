@@ -1,6 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
-
-const openSet = new Set<() => void>();
+import React from 'react';
 
 function safeText(value: unknown): string {
   if (value == null) return '';
@@ -66,89 +64,8 @@ interface InfoTipProps {
   tagClassName?: string;
 }
 
-/** weather-hub info-tip 과 같은 역할: 짧은 꼬리표 + ⓘ, 누르면 바로 아래 설명 */
-export const InfoTip: React.FC<InfoTipProps> = ({
-  detail,
-  tag,
-  label = '산출 기준',
-  className = '',
-  tagClassName = '',
-}) => {
-  const detailText = safeText(detail);
-  const tagText = safeText(tag);
-  const popId = useId().replace(/:/g, '');
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const closeRef = useRef<() => void>(() => undefined);
-
-  closeRef.current = () => setOpen(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const closer = () => closeRef.current();
-    for (const other of [...openSet]) {
-      if (other !== closer) other();
-    }
-    openSet.add(closer);
-
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node | null;
-      if (!t) return;
-      if (btnRef.current?.contains(t)) return;
-      const pop = document.getElementById(popId);
-      if (pop?.contains(t)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        btnRef.current?.focus();
-      }
-    };
-    document.addEventListener('click', onDoc, true);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      openSet.delete(closer);
-      document.removeEventListener('click', onDoc, true);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [open, popId]);
-
-  if (!detailText && !tagText) return null;
-
-  if (!detailText) {
-    return (
-      <span className={`it-inline ${className}`.trim()}>
-        <span className={`it-tag ${tagClassName}`.trim()}>{tagText}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className={`it-inline ${className}`.trim()}>
-      {tagText ? <span className={`it-tag ${tagClassName}`.trim()}>{tagText}</span> : null}
-      <button
-        ref={btnRef}
-        type="button"
-        className="it-btn"
-        aria-expanded={open}
-        aria-controls={popId}
-        aria-label={`${label} 자세히 보기`}
-        title={label}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-      >
-        <span aria-hidden="true">ⓘ</span>
-      </button>
-      <span className="it-pop" id={popId} role="note" hidden={!open} style={{ whiteSpace: 'pre-wrap' }}>
-        {detailText}
-      </span>
-    </span>
-  );
-};
+/** Technical evidence is intentionally not rendered on inal. */
+export const InfoTip: React.FC<InfoTipProps> = () => null;
 
 interface InfoTipAutoProps {
   text: unknown;
@@ -158,25 +75,11 @@ interface InfoTipAutoProps {
   forceTag?: string;
 }
 
-/** 짧으면 그대로, 길면 첫 마디만 남기고 전체는 ⓘ 안 */
-export const InfoTipAuto: React.FC<InfoTipAutoProps> = ({
-  text,
-  max = 48,
-  label = '산출 기준',
-  className = '',
-  forceTag,
-}) => {
+/** Keep result summaries as plain text; never expose calculation/evidence popovers. */
+export const InfoTipAuto: React.FC<InfoTipAutoProps> = ({ text, label, className = '' }) => {
+  if (label === '계산 기준') return null;
   const t = safeText(text);
-  if (!t) return null;
-  if (t.length <= max && !forceTag) {
-    return <p className={`it-note ${className}`.trim()}>{t}</p>;
-  }
-  const tag = forceTag ?? cutTag(t, max);
-  return (
-    <p className={`it-note ${className}`.trim()}>
-      <InfoTip tag={tag} detail={t} label={label} />
-    </p>
-  );
+  return t ? <p className={`it-note ${className}`.trim()}>{t}</p> : null;
 };
 
 export { safeText };

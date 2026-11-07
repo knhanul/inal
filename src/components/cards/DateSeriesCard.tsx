@@ -297,9 +297,7 @@ export const DateSeriesCard: React.FC<DateSeriesCardProps> = ({ stationId, targe
         {name} 날씨 · {yearRangeText} · {basisWord} 기준
       </h3>
       <p className="mt-1 break-keep text-[11px] font-medium leading-snug text-inal-textMuted">
-        {station.name}({station.id}) 지점 한 곳의 관측 · {points.length}개 해
-        {series?.yearLabelRange ? ` (${series.yearLabelRange})` : ''}
-        {hasDataCount < points.length ? ` · 그중 ${hasDataCount}개 해에 자료` : ''}
+        {station.name}
       </p>
 
       <button
@@ -348,7 +346,7 @@ export const DateSeriesCard: React.FC<DateSeriesCardProps> = ({ stationId, targe
             <SeriesChart points={points} selected={selectedIndex} onSelect={setSelected} />
           </div>
           <p className="mt-1 break-keep text-[10px] leading-snug text-inal-textSoft">
-            위 x축 = 학년도(또는 연도), 아래 = 그해 실제 양력 월·일. 날짜가 해마다 밀리는 것이 보입니다. 값이 없는 해는 선을 끊었습니다.
+            점을 누르면 그해 날짜와 기온을 볼 수 있어요.
           </p>
           {selectedPoint && (
             <PointReadout
@@ -363,99 +361,8 @@ export const DateSeriesCard: React.FC<DateSeriesCardProps> = ({ stationId, targe
         </div>
       )}
 
-      {rows.length > 0 && (
-        <div className="mt-2.5 min-w-0 rounded-2xl border border-inal-border bg-inal-surfaceSubtle/60 p-3" data-no-carousel-swipe="true" data-testid="series-table">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-inal-text">해마다 실제 날짜 · 최근 해부터</span>
-            <span className="text-[10px] font-semibold text-inal-textSoft">{rows.length}개 해</span>
-          </div>
-          <ul className="mt-2 divide-y divide-inal-border/70">
-            {visibleRows.map((row) => (
-              <li
-                key={`${row.index}-${row.yearText}-${row.dateText}`}
-                className="flex min-w-0 items-start justify-between gap-2 py-2"
-                aria-label={`${row.yearText} ${row.dateText} ${row.max === null ? row.statusText : `최고 ${tempText(row.max)} 최저 ${tempText(row.min)}`}`}
-              >
-                <div className="min-w-0">
-                  <p className="flex items-baseline gap-1.5 text-[11.5px] font-bold tabular-nums text-inal-text">
-                    <span className="shrink-0">{row.yearText}</span>
-                    <span className="shrink-0 font-semibold text-inal-textMuted">{row.dateText}</span>
-                    {row.lunarText && <span className="truncate text-[10px] font-medium text-inal-textSoft">{row.lunarText}</span>}
-                  </p>
-                  <p className="mt-0.5 text-[10px] font-semibold tabular-nums text-inal-textSoft">
-                    {row.hasData ? (
-                      <>
-                        평균 <span className="text-inal-textMuted">{tempText(row.avg)}</span> · 강수{' '}
-                        <span className="text-inal-textMuted">{rainText(row.rain)}</span>
-                      </>
-                    ) : (
-                      row.statusText
-                    )}
-                  </p>
-                  {row.note && (
-                    <p className="mt-0.5 break-keep text-[10px] font-medium leading-snug text-inal-accent">{row.note}</p>
-                  )}
-                </div>
-                <div className="shrink-0 text-right text-[11px] font-extrabold tabular-nums">
-                  {row.hasData ? (
-                    <>
-                      <span className="block text-red-600">{tempText(row.max)}</span>
-                      <span className="block text-blue-700">{tempText(row.min)}</span>
-                    </>
-                  ) : (
-                    <span className="text-[10px] font-bold text-inal-textSoft">{row.statusText}</span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {rows.length > COLLAPSED_ROWS && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-              data-testid="series-expand"
-              className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl border border-inal-border bg-white px-3 py-2 text-[11px] font-bold text-inal-text"
-            >
-              {expanded ? (
-                <>
-                  접기 <ChevronUp className="h-3.5 w-3.5 text-inal-textMuted" />
-                </>
-              ) : (
-                <>
-                  전체 보기 ({rows.length}개 해) <ChevronDown className="h-3.5 w-3.5 text-inal-textMuted" />
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-        <InfoTipAuto
-          text={`그래프·요약·표는 모두 같은 서버 계산 결과입니다. 값은 그날 하루의 공식 일자료이고, 그해 행이 없으면 다른 날로 채우지 않습니다.`}
-          max={44}
-          label="계산 기준"
-        />
-        <a
-          href={WEATHER_ENDPOINTS.dateSeriesCsv(stationId, target.kind, label, from, thisYear)}
-          download
-          data-testid="series-download"
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-inal-border bg-white px-2.5 py-1.5 text-[10.5px] font-bold text-inal-text"
-        >
-          <Download className="h-3 w-3 text-inal-accent" />
-          CSV 내려받기
-        </a>
-      </div>
-
-      {raw.missingYears && raw.missingYears.length > 0 && (
-        <p className="mt-2 break-keep text-[10px] leading-snug text-inal-textSoft">
-          {yearRangeText} 중 이 특정일이 없던 해 {raw.missingYears.length}개
-          {raw.missingYears.length <= 8
-            ? `: ${raw.missingYears.join('·')}`
-            : ` (${raw.missingYears[0]}~${raw.missingYears[raw.missingYears.length - 1]})`}
-          .
-        </p>
+      {hasDataCount < points.length && (
+        <p className="mt-2 text-[11px] text-inal-textMuted">일부 날짜 자료가 없어 있는 날만 보여 드려요.</p>
       )}
       {selectedPoint && !pointHasData(selectedPoint) && selectedPoint.dateStatus === 'future' && (
         <p className="mt-2 break-keep text-[10px] leading-snug text-inal-textSoft">
