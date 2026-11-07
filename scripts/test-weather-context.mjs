@@ -66,3 +66,16 @@ test("compact mobile mounts same renderer in today, battle and story tabs", asyn
   assert.match(story, /mode="season"/);
   assert.match(story, /기존 날짜별 상세 비교/);
 });
+
+test("grid observation contract survives proxy cache key; today TTL is30s", () => {
+  const q = sanitizeSearchParams(
+    new URLSearchParams("station=108&basis=grid-v1&token=private"),
+    "/api/stats/context-today",
+  );
+  assert.equal(q.get("basis"), "grid-v1");
+  assert.equal(q.get("token"), null);
+  assert.equal(
+    matchAllowedRoute("/api/stats/context-today").route.ttlSeconds,
+    30,
+  );
+});

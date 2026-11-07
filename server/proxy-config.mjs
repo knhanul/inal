@@ -1,5 +1,5 @@
 export const ALLOWED_READONLY_ROUTES = [
-  { path: '/api/stats/context-today', ttlSeconds: 60, category: 'stats' },
+  { path: '/api/stats/context-today', ttlSeconds: 30, category: 'stats' },
   { path: '/api/stats/context-battle', ttlSeconds: 60, category: 'stats' },
   { path: '/api/stats/context-season', ttlSeconds: 600, category: 'stats' },
   { path: '/api/rt/now', ttlSeconds: 60, category: 'realtime' },

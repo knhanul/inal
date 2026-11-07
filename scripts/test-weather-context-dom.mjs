@@ -108,7 +108,7 @@ test("today unavailable is not rendered as zero; missing graph and evidence stay
     value: null,
     diff: null,
     previous: null,
-    recent7: { mean: null, days: 0, diff: null },
+    recent7: { mean: null, days: null, computed: false, diff: null },
     extras: [],
     series: [{ hour: 0, today: null, yesterday: null }],
     recentDays: [{ date: "2026-11-07", max: null, min: null }],
@@ -120,7 +120,8 @@ test("today unavailable is not rendered as zero; missing graph and evidence stay
   assert.match(root.textContent, /비교할 자료가 없어요/);
   assert.doesNotMatch(root.textContent, /0\.0℃/);
   assert.equal(root.querySelector("details").open, false);
-  assert.match(root.textContent, /0\/7일/);
+  assert.doesNotMatch(root.textContent, /0\/7일/);
+  assert.match(root.textContent, /계산하지 않았어요/);
   stop();
   dom.window.close();
 });
@@ -220,6 +221,49 @@ test("no spring observations are labeled unavailable, not zero freezing days", a
   await ready(root);
   assert.match(root.textContent, /영하 일수 자료 없음/);
   assert.doesNotMatch(root.textContent, /영하 0일/);
+  stop();
+  dom.window.close();
+});
+
+test("today identifies same-grid live source, separate ASOS extrema and versioned proxy cache key", async () => {
+  const { root, dom, requests } = setup(() => ({
+    ok: true,
+    station: { name: "수원" },
+    source: "기상청 초단기실황 · 동일 격자 비교",
+    grid: { nx: 60, ny: 120, note: "ASOS 관측소와 다름" },
+    available: true,
+    message: "2026-11-08 8시 KST",
+    value: 4.4,
+    previous: 0.9,
+    diff: 3.5,
+    recent7: { mean: 7, days: 7, computed: true, diff: -2.6 },
+    extras: [],
+    series: [{ hour: 8, today: 4.4, yesterday: 0.9 }],
+    recentDays: [{ date: "2026-11-07", max: 15, min: 2 }],
+    dailySource: "ASOS 공식 일자료 · 별도",
+    policy: "동일격자",
+    thresholds: "서비스 기준",
+    latestTemperatureTime: "2026-11-08 08:00:00",
+    precipitation: {
+      today: { text: "1mm 미만" },
+      yesterday: { text: "0" },
+      note: "RN1 직전1시간 · 범위값은 수치차이 제외",
+    },
+  }));
+  const stop = mountWeatherContext(root, { mode: "today", station: "119" });
+  await ready(root);
+  assert.match(root.textContent, /기상청 초단기실황 · 동일 격자 비교/);
+  assert.match(root.textContent, /60,120/);
+  assert.match(root.textContent, /오늘 4.4℃ \/ 어제 0.9℃/);
+  assert.match(root.textContent, /7\/7일/);
+  assert.match(root.textContent, /ASOS 최고·최저 \(별도 자료\)/);
+  assert.match(root.textContent, /1mm 미만/);
+  const q = new URL(
+    requests.find((u) => u.includes("context-today")),
+    "http://local",
+  ).searchParams;
+  assert.equal(q.get("basis"), "grid-v1");
+  assert.equal(q.get("station"), "119");
   stop();
   dom.window.close();
 });
