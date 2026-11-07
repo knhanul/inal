@@ -1,3 +1,4 @@
+import { WeatherContextPanel } from '../components/cards/WeatherContextPanel';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Swords, CalendarHeart, CalendarDays, ChevronRight, HelpCircle, Plus, X } from 'lucide-react';
 import type { BottomSheetDetailPayload, StoryCardViewModel } from '../types/viewmodel';
@@ -30,6 +31,7 @@ const STORY_TAB_LABELS = [
   '질문으로 보는 날씨',
   '날짜로 보는 날씨',
   '날씨 배틀',
+  '절기·복날',
   '과거 같은 날·기록',
 ];
 
@@ -790,7 +792,8 @@ export const StoryPage: React.FC<StoryPageProps> = ({ stationId, onOpenDetail })
         {[
           <React.Fragment key="story-questions">{renderQuestionsCard()}</React.Fragment>,
           <React.Fragment key="story-date">{renderDateWeatherCard()}</React.Fragment>,
-          <React.Fragment key="story-battle">{renderWeatherBattleCard()}</React.Fragment>,
+          <React.Fragment key="story-battle"><WeatherContextPanel stationId={stationId} mode="battle" /><details><summary className="p-3 text-sm">기존 날짜별 상세 비교</summary>{renderWeatherBattleCard()}</details></React.Fragment>,
+          <React.Fragment key="story-season"><WeatherContextPanel stationId={stationId} mode="season" /></React.Fragment>,
           <React.Fragment key="story-records">{renderHistoricalRecordsStoryCard()}</React.Fragment>,
         ]}
       </CardCarousel>

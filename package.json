@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify.mjs",
     "test:calendar": "node scripts/test-calendar-events.mjs",
-    "test:series": "node scripts/test-date-series.mjs"
+    "test:series": "node scripts/test-date-series.mjs",
+    "test:context": "node --test scripts/test-weather-context.mjs scripts/test-weather-context-dom.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.2",
@@ -31,6 +32,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "jsdom": "26.1.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2",

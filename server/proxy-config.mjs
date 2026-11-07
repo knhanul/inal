@@ -1,4 +1,7 @@
 export const ALLOWED_READONLY_ROUTES = [
+  { path: '/api/stats/context-today', ttlSeconds: 60, category: 'stats' },
+  { path: '/api/stats/context-battle', ttlSeconds: 60, category: 'stats' },
+  { path: '/api/stats/context-season', ttlSeconds: 600, category: 'stats' },
   { path: '/api/rt/now', ttlSeconds: 60, category: 'realtime' },
   { path: '/api/rt/today', ttlSeconds: 60, category: 'realtime' },
   { path: '/api/rt/forecast', ttlSeconds: 180, category: 'forecast' },
@@ -69,6 +72,9 @@ export const ALLOWED_QUERY_KEYS = new Set([
   // 특정일 '해마다 실제 날짜'(/api/stats/date-series): 종류(kind)와 이름(label). from·to·format 은 위에 이미 있다.
   'kind',
   'label',
+  'opponent',
+  'criteria',
+  'name',
 ]);
 
 export function matchAllowedRoute(pathname) {

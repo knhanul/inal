@@ -361,12 +361,12 @@ check('seriesBasisText: 제목·출처에 쓰는 기간 문구', () => {
 
 const { ALLOWED_READONLY_ROUTES, matchAllowedRoute, sanitizeSearchParams } = await import('../server/proxy-config.mjs');
 
-check('프록시: /api/stats/date-series 는 읽기 전용으로 통과하고 읽기 전용 목록이 21개', () => {
+check('프록시: /api/stats/date-series 는 읽기 전용으로 통과하고 읽기 전용 목록이 24개', () => {
   const route = matchAllowedRoute('/api/stats/date-series');
   assert.equal(route.allowed, true);
   assert.equal(route.route.ttlSeconds, 600);
   assert.equal(route.route.category, 'stats');
-  assert.equal(ALLOWED_READONLY_ROUTES.length, 21);
+  assert.equal(ALLOWED_READONLY_ROUTES.length, 24);
   // 원래 있던 경로가 그대로 남아 있다(목록 보존)
   for (const p of ['/api/stats/date-weather', '/api/stats/date-battle', '/api/calendar/events', '/api/stats/highlights']) {
     assert.equal(matchAllowedRoute(p).allowed, true, `${p} 는 그대로 허용`);

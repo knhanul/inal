@@ -1,3 +1,4 @@
+import { WeatherContextPanel } from '../components/cards/WeatherContextPanel';
 import React, { useState } from 'react';
 import type { BasisId } from '../types/api';
 import type { BottomSheetDetailPayload } from '../types/viewmodel';
@@ -69,7 +70,7 @@ export const TodayPage: React.FC<TodayPageProps> = ({ stationId, basis, onOpenDe
     }
     const domain = mapApiNowToDomain(nowQuery.data.data, nowQuery.data.isDevFallback);
     const heroVm = mapDomainToHeroViewModel(domain, basis);
-    return <WeatherHeroCard vm={heroVm} onOpenDetail={onOpenDetail} />;
+    return <><WeatherHeroCard vm={heroVm} onOpenDetail={onOpenDetail} /><WeatherContextPanel stationId={stationId} mode="today" /></>;
   };
 
   const renderStorySlide = () => {
