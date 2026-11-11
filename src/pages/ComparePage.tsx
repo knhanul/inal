@@ -18,6 +18,7 @@ import {
   formatWindSpeed,
   isValidNumber,
 } from '../api/mappers';
+import { buildYearlyCompareView } from '../lib/yearlyCompare';
 import { CardCarousel } from '../components/common/CardCarousel';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
 import { ErrorState } from '../components/common/ErrorState';
@@ -53,6 +54,7 @@ export const ComparePage: React.FC<ComparePageProps> = ({
   const regionsQuery = useRtRegionsQuery(true);
   const nowQuery = useRtNowQuery(stationId, true);
   const yearlyQuery = useStatsYearlyQuery(stationId, 'avg_temp', true);
+  const [yearlyExpanded, setYearlyExpanded] = React.useState(false);
   const regionStatsQuery = useStatsRegionQuery('108,159,184', true);
   const lifeQuery = useRtLifeQuery(stationId, true);
   const recordsQuery = useRtRecordsQuery(stationId, true);
@@ -167,40 +169,36 @@ export const ComparePage: React.FC<ComparePageProps> = ({
   };
 
   const renderYearlyCompareCard = () => {
-    if (yearlyQuery.isLoading) return <LoadingSkeleton label="1990년 이후 연도별 기온 추이를 불러오는 중입니다…" />;
+    if (yearlyQuery.isLoading) return <LoadingSkeleton label="연도별 같은 기간 기온을 불러오는 중입니다…" />;
     if (yearlyQuery.isError || !yearlyQuery.data) return <ErrorState title="연도별 비교 데이터를 불러오지 못했어요" onRetry={() => yearlyQuery.refetch()} />;
 
     const raw = yearlyQuery.data.data;
-    const rows = raw.rows || [];
-    const recentRows = [...rows].slice(-5).reverse();
+    const view = buildYearlyCompareView(raw, basis, station.name, yearlyExpanded);
 
     return (
       <ComparisonCard
         badgeText="연도별 비교"
-        title={`${station.name} 1990년 이후 연도별 같은 시기 기온 변화`}
-        summary="같은 시기 연도별 평균기온 추이"
-        provenance={{ kind: 'stats', sourceName: raw.source || '기상청 ASOS 공식 일자료', referenceTime: '1990~2025' }}
-        rows={recentRows.map((r) => ({
+        title={view.title}
+        summary={view.summary}
+        provenance={{ kind: 'stats', sourceName: raw.source || '기상청 ASOS 공식 일자료', referenceTime: view.fromYear && view.toYear ? `${view.fromYear}~${view.toYear}` : '', isDevFallback: yearlyQuery.data.isDevFallback }}
+        rows={view.shown.map((r) => ({
           id: String(r.year),
           title: `${r.year}년`,
           subtitle: r.obs != null && r.days != null && r.obs < r.days ? '일부 날짜 자료 없음' : undefined,
           primaryText: formatTemp(r.value),
         }))}
-        detail={{
-          id: `compare-yearly-${stationId}`,
-          categoryBadge: '연도별 추이 그래프',
-          title: `${station.name} 연도별 기온 추이`,
-          subtitle: '1990년부터 최근 완료 연도까지의 관측 추이입니다.',
-          provenance: { kind: 'stats', sourceName: 'ASOS 공식 일자료', referenceTime: '1990~2025년' },
-          chartSeries: {
-            type: 'yearly-bars',
-            unit: '℃',
-            points: rows.map((r) => ({ label: String(r.year).slice(2) + '년', primaryValue: r.value, kind: 'obs' })),
-          },
-          explanationBody: ['기상청 ASOS 공식 일자료를 기준으로 연도별 같은 기간의 평균을 계산합니다.'],
-        }}
-        onOpenDetail={onOpenDetail}
-      />
+      >
+        {view.rows.length > 5 && (
+          <button
+            type="button"
+            onClick={() => setYearlyExpanded((v) => !v)}
+            aria-expanded={yearlyExpanded}
+            className="touch-target flex w-full items-center justify-center rounded-xl border border-inal-border bg-white px-3 py-2 text-[11px] font-bold text-inal-text"
+          >
+            {yearlyExpanded ? '최근 5개 해만 보기' : `${view.fromYear}~${view.toYear}년 전체 ${view.rows.length}개 해 보기`}
+          </button>
+        )}
+      </ComparisonCard>
     );
   };
 

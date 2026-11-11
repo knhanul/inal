@@ -18,7 +18,7 @@
     "verify": "node scripts/verify.mjs",
     "test:calendar": "node scripts/test-calendar-events.mjs",
     "test:series": "node scripts/test-date-series.mjs",
-    "test:context": "node --test scripts/test-weather-context.mjs scripts/test-weather-context-dom.mjs scripts/test-main-info.mjs"
+    "test:context": "node --test scripts/test-weather-context.mjs scripts/test-weather-context-dom.mjs scripts/test-main-info.mjs scripts/test-yearly-compare.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.2",

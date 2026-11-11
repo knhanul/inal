@@ -425,6 +425,12 @@ export interface ApiStatsYearlyResponse {
   station?: ApiStationRef;
   source?: string;
   rows: ApiStatsYearlyRow[];
+  period?: { key?: string; label?: string };
+  metric?: { id?: string; label?: string; unit?: string };
+  fromYear?: number;
+  toYear?: number;
+  asOf?: string;
+  text?: string[];
   meta?: {
     station?: ApiStationRef;
     metric?: { id: string; label: string; unit: string; agg?: string };
